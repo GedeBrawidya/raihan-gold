@@ -1,0 +1,197 @@
+import { useState, useEffect } from "react";
+import { useSupabase, getDailyPrice, updateDailyPrice, AntamDailyPrice } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
+import { DollarSign, Save, Loader2 } from "lucide-react";
+
+export const DailyPriceForm = () => {
+  const { supabase } = useSupabase();
+  const { toast } = useToast();
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [sellPrice, setSellPrice] = useState("");
+  const [buybackPrice, setBuybackPrice] = useState("");
+
+  useEffect(() => {
+    loadPrice();
+  }, []);
+
+  const loadPrice = async () => {
+    try {
+      setLoading(true);
+      const price = await getDailyPrice(supabase);
+      if (price) {
+        setSellPrice(String(price.sell_price_per_gram));
+        setBuybackPrice(String(price.buyback_price_per_gram));
+      }
+    } catch (err: any) {
+      console.error("Load price error:", err);
+      toast({
+        title: "Error",
+        description: "Gagal memuat harga saat ini",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    // Validation
+    if (!sellPrice.trim() || !buybackPrice.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Semua field harus diisi",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const sellNum = parseFloat(sellPrice);
+    const buybackNum = parseFloat(buybackPrice);
+
+    if (isNaN(sellNum) || isNaN(buybackNum)) {
+      toast({
+        title: "Validation Error",
+        description: "Harga harus berupa angka",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (sellNum <= 0 || buybackNum <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "Harga harus lebih besar dari 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await updateDailyPrice(supabase, {
+        sell_price_per_gram: sellNum,
+        buyback_price_per_gram: buybackNum,
+      });
+      toast({
+        title: "Success",
+        description: "Harga emas berhasil diperbarui",
+      });
+    } catch (err: any) {
+      console.error("Save price error:", err);
+      toast({
+        title: "Error",
+        description: err?.message || "Gagal menyimpan harga",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-card border border-border rounded-lg p-8 flex items-center justify-center min-h-64">
+        <Loader2 className="w-6 h-6 animate-spin text-gold" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-lg p-8 shadow-sm">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-8">
+        <div className="p-3 bg-gold/10 rounded-lg">
+          <DollarSign className="w-6 h-6 text-gold" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Perbarui Harga Emas Antam</h2>
+          <p className="text-sm text-muted-foreground mt-1">Kelola harga jual dan buyback harian</p>
+        </div>
+      </div>
+
+      {/* Form */}
+      <div className="space-y-6">
+        {/* Harga Jual */}
+        <div>
+          <label className="block text-sm font-semibold text-foreground mb-2">
+            Harga Jual Dasar (per gram)
+          </label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground font-medium">
+              Rp
+            </span>
+            <input
+              type="number"
+              value={sellPrice}
+              onChange={(e) => setSellPrice(e.target.value)}
+              placeholder="0"
+              className="w-full pl-12 pr-4 py-3 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Harga dasar per gram untuk penjualan emas Antam
+          </p>
+        </div>
+
+        {/* Harga Buyback */}
+        <div>
+          <label className="block text-sm font-semibold text-foreground mb-2">
+            Harga Buyback Dasar (per gram)
+          </label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground font-medium">
+              Rp
+            </span>
+            <input
+              type="number"
+              value={buybackPrice}
+              onChange={(e) => setBuybackPrice(e.target.value)}
+              placeholder="0"
+              className="w-full pl-12 pr-4 py-3 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Harga dasar per gram untuk pembelian kembali (buyback) emas Antam
+          </p>
+        </div>
+
+        {/* Info Box */}
+        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/30 rounded-lg p-4">
+          <p className="text-sm text-blue-900 dark:text-blue-300">
+            💡 Harga ini akan digunakan untuk menghitung semua variasi berat (0.5g - 100g) di halaman publik dan kalkulator buyback.
+          </p>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3 mt-8">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-6 py-3 bg-gold hover:bg-gold/90 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Menyimpan...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" />
+              Simpan Harga
+            </>
+          )}
+        </button>
+        <button
+          onClick={loadPrice}
+          disabled={loading || saving}
+          className="px-6 py-3 border border-border text-foreground rounded-lg font-semibold hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Batalkan
+        </button>
+      </div>
+    </div>
+  );
+};
