@@ -13,6 +13,9 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
   // Karena perhitungan (Base Price * Berat) sudah dilakukan di ProductCatalog.tsx,
   // di sini kita tinggal ambil product.price saja.
   const displayPrice = Number(product.price || 0);
+  
+  // 1. Simpan format harga (contoh: "Rp 5.000.000") ke variabel
+  const formattedPrice = formatCurrency(displayPrice);
 
   return (
     <motion.div
@@ -20,12 +23,10 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay: index * 0.1 }}
-      // STYLE: Card adaptive (Light/Dark) dengan border halus
       className="group bg-card rounded-2xl overflow-hidden border border-border shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col h-full"
     >
       {/* Image Container */}
       <div className="relative aspect-square bg-muted overflow-hidden">
-        {/* Placeholder Gradient Background */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-24 h-24 rounded-full bg-[#D4AF37]/20 blur-xl" />
         </div>
@@ -37,7 +38,7 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
           loading="lazy"
         />
 
-        {/* Badge Berat (Pojok Kiri Atas) */}
+        {/* Badge Berat */}
         <div className="absolute top-3 left-3 z-20">
           <span className="px-3 py-1 bg-[#D4AF37] text-black text-xs font-bold rounded-lg shadow-md inline-flex items-center gap-1">
             <Weight size={12} />
@@ -49,27 +50,23 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
       {/* Content */}
       <div className="p-5 flex flex-col flex-1">
         <div className="flex-1">
-          {/* Title */}
           <h3 className="text-lg font-serif font-bold text-foreground mb-2 line-clamp-1 group-hover:text-[#D4AF37] transition-colors">
             {product.name}
           </h3>
           
-          {/* Description */}
           <p className="text-sm text-muted-foreground mb-4 line-clamp-2 leading-relaxed">
             {product.description}
           </p>
         </div>
         
-        {/* Divider Tipis */}
         <div className="h-px w-full bg-border mb-4" />
         
         {/* Price Section */}
         <div className="mb-4">
           <p className="text-xs text-muted-foreground mb-1">Estimasi Harga</p>
           <div className="flex items-baseline gap-1">
-            {/* HARGA: Warna Emas & Font Besar */}
             <p className="text-2xl font-bold text-[#D4AF37]">
-              {formatCurrency(displayPrice)}
+              {formattedPrice}
             </p>
           </div>
         </div>
@@ -80,7 +77,8 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
           asChild
         >
           <a
-            href={generateWhatsAppLink(product.name, product.weight)}
+            // 2. Kirim formattedPrice sebagai parameter ke-3
+            href={generateWhatsAppLink(product.name, product.weight, formattedPrice)}
             target="_blank"
             rel="noopener noreferrer"
           >

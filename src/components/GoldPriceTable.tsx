@@ -187,12 +187,36 @@ const AntamPriceListWithForm = ({ basePrice, onRefresh, isRefreshing }: any) => 
   const estimatedPrice = basePrice ? basePrice.buyback_price_per_gram * selectedWeight : 0;
 
   const handleWhatsApp = () => {
+    // 1. Validasi Input
     if (!fullName.trim() || !phone.trim()) {
-      toast({ title: "Error", description: "Mohon isi nama dan nomor HP", variant: "destructive" });
+      toast({ 
+        title: "Validasi Error", 
+        description: "Mohon lengkapi Nama dan Nomor HP/WA Anda.", 
+        variant: "destructive" 
+      });
       return;
     }
-    const message = `Halo, saya ${fullName}. Mau buyback Antam ${selectedWeight}g. Estimasi: ${formatCurrency(estimatedPrice)}. HP: ${phone}`;
-    window.open(`https://wa.me/628123456789?text=${encodeURIComponent(message)}`, "_blank");
+
+    // 2. Format Harga agar rapi (Contoh: "Rp 5.000.000")
+    const formattedTotal = formatCurrency(estimatedPrice);
+
+    // 3. Susun Pesan Standar Bisnis (Professional Format)
+    // Menggunakan \n untuk baris baru dan *text* untuk bold di WhatsApp
+    const text = `Halo Admin Raihan Gold, 👋
+
+Saya ingin mengajukan *Buyback* (Jual Kembali) emas dengan detail sebagai berikut:
+
+👤 *Nama Lengkap:* ${fullName}
+📱 *Nomor HP/WA:* ${phone}
+⚖️ *Berat Emas:* ${selectedWeight} gram
+💰 *Estimasi Harga:* ${formattedTotal}
+
+Mohon informasi mengenai prosedur penyerahan barang dan pengecekan selanjutnya. Terima kasih.`;
+
+    // 4. Encode dan Buka WhatsApp
+    const whatsappNumber = "6285190044083"; // Pastikan nomor ini benar
+    const encodedMessage = encodeURIComponent(text);
+    window.open(`https://wa.me/${whatsappNumber}?text=${encodedMessage}`, "_blank");
   };
 
   if (!basePrice) return <div className="text-center py-8 text-muted-foreground">Loading prices...</div>;
