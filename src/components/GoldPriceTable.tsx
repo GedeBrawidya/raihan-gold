@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, RefreshCw, Clock, MessageCircle } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/formatting";
 import { useState, useEffect } from "react";
-import { useSupabase, getBaseGoldPrice, getDailyPrice, AntamDailyPrice, BaseGoldPrice } from "@/lib/supabase";
+import { useSupabase, getBaseGoldPrice, BaseGoldPrice } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
 const WEIGHT_OPTIONS = [0.5, 1, 2, 3, 5, 10, 25, 50, 100];
@@ -23,7 +23,6 @@ export const GoldPriceTable = () => {
       
       setBasePrice(baseData);
       
-      // Generate sell price rows by calculating from base price
       const rows = WEIGHT_OPTIONS.map((weight) => ({
         weight,
         price: baseData.sell_price_per_gram * weight,
@@ -39,11 +38,10 @@ export const GoldPriceTable = () => {
 
   useEffect(() => {
     handleRefresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <section id="harga-emas" className="py-24 bg-gradient-to-b from-background to-slate-50 dark:from-slate-950 dark:to-slate-900">
+    <section id="harga-emas" className="py-12 md:py-24 bg-gradient-to-b from-background to-slate-50 dark:from-slate-950 dark:to-slate-900">
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <motion.div
@@ -51,16 +49,16 @@ export const GoldPriceTable = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-10 md:mb-16"
         >
-          <span className="inline-block px-4 py-1 bg-gold/10 text-gold text-sm font-medium rounded-full mb-4">
+          <span className="inline-block px-3 py-1 bg-gold/10 text-gold text-xs md:text-sm font-medium rounded-full mb-4">
             💰 Harga Terkini
           </span>
-          <h2 className="text-3xl md:text-5xl font-serif font-bold text-foreground mb-4">
+          <h2 className="text-3xl md:text-5xl font-serif font-bold text-foreground mb-4 break-words">
             Harga Emas Hari Ini
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-            Pantau harga jual dan buyback emas dengan real-time. Kami menjamin harga paling kompetitif di pasaran.
+          <p className="text-muted-foreground max-w-2xl mx-auto text-sm md:text-lg px-2">
+            Pantau harga jual dan buyback emas dengan real-time. Kami menjamin harga paling kompetitif.
           </p>
         </motion.div>
 
@@ -72,101 +70,86 @@ export const GoldPriceTable = () => {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="max-w-5xl mx-auto"
         >
-          <div className="bg-card rounded-2xl shadow-xl border border-border overflow-hidden">
-            {/* Tab Navigation */}
+          <div className="bg-card rounded-xl md:rounded-2xl shadow-xl border border-border overflow-hidden">
+            {/* Tab Navigation - Stacked on very small screens if needed, but flex usually works */}
             <div className="flex border-b border-border bg-muted/30">
               <button
                 onClick={() => setActiveTab("sell")}
-                className={`flex-1 px-6 py-4 font-semibold transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 px-2 py-3 md:px-6 md:py-4 font-semibold transition-all flex items-center justify-center gap-2 text-xs md:text-base ${
                   activeTab === "sell"
                     ? "bg-gold text-black shadow-sm"
                     : "text-foreground hover:bg-muted/50"
                 }`}
               >
-                <TrendingUp className="w-5 h-5" />
+                <TrendingUp className="w-4 h-4" />
                 <span>Harga Jual</span>
               </button>
               <button
                 onClick={() => setActiveTab("buyback")}
-                className={`flex-1 px-6 py-4 font-semibold transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 px-2 py-3 md:px-6 md:py-4 font-semibold transition-all flex items-center justify-center gap-2 text-xs md:text-base ${
                   activeTab === "buyback"
                     ? "bg-gold text-black shadow-sm"
                     : "text-foreground hover:bg-muted/50"
                 }`}
               >
-                <TrendingDown className="w-5 h-5" />
+                <TrendingDown className="w-4 h-4" />
                 <span>Harga Buyback</span>
               </button>
             </div>
 
             {/* Tab Content */}
-            <div className="p-8">
+            <div className="p-4 md:p-8">
               {/* Tab 1: Selling Prices */}
               {activeTab === "sell" && (
                 <div className="space-y-6 animate-in fade-in duration-300">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-2xl font-bold text-foreground">Harga Jual Emas per Berat</h3>
-                      <p className="text-muted-foreground mt-1">Harga emas per gram: {formatCurrency(basePrice?.sell_price_per_gram || 0)}</p>
+                      <h3 className="text-xl md:text-2xl font-bold text-foreground">Harga Jual</h3>
+                      <p className="text-xs md:text-sm text-muted-foreground mt-1">Per gram: {formatCurrency(basePrice?.sell_price_per_gram || 0)}</p>
                     </div>
                     <button
                       onClick={handleRefresh}
                       disabled={isRefreshing}
-                      className="flex items-center gap-2 px-4 py-2 bg-gold/10 hover:bg-gold/20 text-gold rounded-lg transition-colors disabled:opacity-50"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gold/10 hover:bg-gold/20 text-gold rounded-lg transition-colors disabled:opacity-50 text-sm"
                     >
                       <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                      <span className="text-sm font-medium hidden sm:inline">Refresh</span>
+                      Refresh Data
                     </button>
                   </div>
 
-                  {/* Harga Jual Table */}
-                  <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full">
+                  {/* Responsive Table Wrapper */}
+                  <div className="overflow-x-auto rounded-lg border border-border -mx-4 sm:mx-0">
+                    <table className="w-full min-w-[300px]">
                       <thead>
                         <tr className="bg-muted">
-                          <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Berat</th>
-                          <th className="px-6 py-4 text-right text-sm font-semibold text-foreground">
-                            <div className="flex items-center justify-end gap-2">
-                              <TrendingUp className="w-4 h-4 text-[#D4AF37]" />
-                              Harga Jual
-                            </div>
-                          </th>
+                          <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs md:text-sm font-semibold text-foreground">Berat</th>
+                          <th className="px-4 md:px-6 py-3 md:py-4 text-right text-xs md:text-sm font-semibold text-foreground">Harga Jual</th>
                         </tr>
                       </thead>
                       <tbody>
                         {sellPriceRows.map((row, index) => (
-                          <motion.tr
+                          <tr
                             key={index}
-                            initial={{ opacity: 0, x: -20 }}
-                            whileInView={{ opacity: 1, x: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.4, delay: index * 0.05 }}
                             className="border-t border-border hover:bg-muted/50 transition-colors"
                           >
-                            <td className="px-6 py-5">
+                            <td className="px-4 md:px-6 py-3 md:py-5">
                               <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-gold to-amber-500 flex items-center justify-center shadow-sm">
-                                  <span className="text-white text-xs font-bold">{row.weight}g</span>
+                                <div className="w-8 h-8 md:w-12 md:h-12 rounded-lg bg-gradient-to-br from-gold to-amber-500 flex items-center justify-center shadow-sm shrink-0">
+                                  <span className="text-white text-[10px] md:text-xs font-bold">{row.weight}g</span>
                                 </div>
                                 <div className="flex flex-col">
-                                  <span className="font-semibold text-foreground text-base">{row.weight} gram</span>
-                                  <span className="text-xs text-muted-foreground">Berat emas</span>
+                                  <span className="font-semibold text-foreground text-sm md:text-base">{row.weight} gram</span>
+                                  <span className="text-[10px] md:text-xs text-muted-foreground">Logam Mulia</span>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-5 text-right">
-                              <span className="text-lg font-bold text-[#D4AF37]">{formatCurrency(row.price)}</span>
+                            <td className="px-4 md:px-6 py-3 md:py-5 text-right">
+                              <span className="text-sm md:text-lg font-bold text-[#D4AF37]">{formatCurrency(row.price)}</span>
                             </td>
-                          </motion.tr>
+                          </tr>
                         ))}
                       </tbody>
                     </table>
-                  </div>
-
-                  <div className="bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
-                    <p className="text-sm text-slate-700 dark:text-slate-300">
-                      ℹ️ Harga jual adalah harga ketika Anda membeli emas dari kami. Harga ditampilkan per berat yang berbeda.
-                    </p>
                   </div>
                 </div>
               )}
@@ -180,12 +163,12 @@ export const GoldPriceTable = () => {
             </div>
 
             {/* Footer */}
-            <div className="bg-muted/30 px-8 py-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+            <div className="bg-muted/30 px-4 md:px-8 py-3 md:py-4 border-t border-border flex flex-col md:flex-row items-start md:items-center justify-between text-xs text-muted-foreground gap-2">
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                <span>Terakhir diperbarui: <span className="font-semibold text-foreground">{basePrice?.updated_at ? formatDate(new Date(basePrice.updated_at)) : "—"}</span></span>
+                <Clock className="w-3 h-3 md:w-4 md:h-4" />
+                <span>Update: <span className="font-semibold text-foreground">{basePrice?.updated_at ? formatDate(new Date(basePrice.updated_at)) : "—"}</span></span>
               </div>
-              <span className="text-xs">* Harga dapat berubah sewaktu-waktu mengikuti pasar</span>
+              <span className="text-[10px] md:text-xs italic">* Harga dapat berubah sewaktu-waktu</span>
             </div>
           </div>
         </motion.div>
@@ -194,146 +177,53 @@ export const GoldPriceTable = () => {
   );
 };
 
-// ========== ANTAM PRICE LIST WITH FORM COMPONENT ==========
-
-// Using shared formatCurrency from src/lib/formatting
-
-interface AntamPriceRow {
-  weight: number;
-  sellPrice: number;
-  buybackPrice: number;
-  margin: number;
-}
-
-interface AntamPriceListWithFormProps {
-  basePrice: BaseGoldPrice | null;
-  onRefresh: () => void;
-  isRefreshing: boolean;
-}
-
-const AntamPriceListWithForm = ({ basePrice, onRefresh, isRefreshing }: AntamPriceListWithFormProps) => {
-  const [priceRows, setPriceRows] = useState<AntamPriceRow[]>([]);
+// Sub-Component for Buyback
+const AntamPriceListWithForm = ({ basePrice, onRefresh, isRefreshing }: any) => {
   const [selectedWeight, setSelectedWeight] = useState<number>(1);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
-  const whatsappPhone = "628xxxx"; // Replace with actual number
+  const { toast } = useToast();
 
-  useEffect(() => {
-    if (basePrice) {
-      const rows = WEIGHT_OPTIONS.map((weight) => ({
-        weight,
-        sellPrice: basePrice.sell_price_per_gram * weight,
-        buybackPrice: basePrice.buyback_price_per_gram * weight,
-        margin: basePrice.sell_price_per_gram * weight - basePrice.buyback_price_per_gram * weight,
-      }));
-      setPriceRows(rows);
-    }
-  }, [basePrice]);
-
-  const selectedRow = priceRows.find((r) => r.weight === selectedWeight);
-  const estimatedPrice = selectedRow?.buybackPrice || 0;
+  const estimatedPrice = basePrice ? basePrice.buyback_price_per_gram * selectedWeight : 0;
 
   const handleWhatsApp = () => {
     if (!fullName.trim() || !phone.trim()) {
       toast({ title: "Error", description: "Mohon isi nama dan nomor HP", variant: "destructive" });
       return;
     }
-
-    const message = `Halo admin, nama saya ${fullName}. Saya ingin buyback Antam ${selectedWeight}g. Estimasi harga: Rp ${formatCurrency(estimatedPrice).replace("Rp ", "")}. Nomor HP: ${phone}`;
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/${whatsappPhone}?text=${encodedMessage}`, "_blank");
+    const message = `Halo, saya ${fullName}. Mau buyback Antam ${selectedWeight}g. Estimasi: ${formatCurrency(estimatedPrice)}. HP: ${phone}`;
+    window.open(`https://wa.me/628123456789?text=${encodeURIComponent(message)}`, "_blank");
   };
 
-  const { toast } = useToast();
-
-  if (!basePrice) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-muted-foreground">Harga tidak tersedia saat ini</p>
-      </div>
-    );
-  }
+  if (!basePrice) return <div className="text-center py-8 text-muted-foreground">Loading prices...</div>;
 
   return (
-    <div className="space-y-8">
-      {/* Header Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-gold/10 dark:bg-[#2b2417]/10 border border-gold/20 rounded-lg p-4">
-          <p className="text-sm text-[#D4AF37] font-semibold">Harga Jual (Per Gram)</p>
-          <p className="text-3xl font-bold text-[#D4AF37] mt-2">{formatCurrency(basePrice.sell_price_per_gram)}</p>
+    <div className="space-y-6 md:space-y-8">
+      {/* Price Summary Cards - Stack on mobile */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+        <div className="bg-gold/10 dark:bg-[#2b2417]/10 border border-gold/20 rounded-lg p-4 text-center sm:text-left">
+          <p className="text-xs md:text-sm text-[#D4AF37] font-semibold">Harga Jual /gram</p>
+          <p className="text-xl md:text-3xl font-bold text-[#D4AF37] mt-1">{formatCurrency(basePrice.sell_price_per_gram)}</p>
         </div>
-        <div className="bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
-          <p className="text-sm text-slate-400 font-semibold">Harga Buyback (Per Gram)</p>
-          <p className="text-3xl font-bold text-slate-400 mt-2">{formatCurrency(basePrice.buyback_price_per_gram)}</p>
-        </div>
-      </div>
-
-      {/* Antam Price List Table */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-foreground">Daftar Harga Antam</h3>
-          <button
-            onClick={onRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-2 px-3 py-2 bg-gold/10 hover:bg-gold/20 text-gold rounded-lg transition-colors disabled:opacity-50 text-sm"
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
-        </div>
-
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted">
-                <th className="px-4 py-3 text-left font-semibold text-foreground">Berat</th>
-                <th className="px-4 py-3 text-right font-semibold text-foreground">Harga Jual</th>
-                <th className="px-4 py-3 text-right font-semibold text-foreground">Harga Buyback</th>
-                <th className="px-4 py-3 text-right font-semibold text-foreground">Margin</th>
-              </tr>
-            </thead>
-            <tbody>
-              {priceRows.map((row, idx) => (
-                <motion.tr
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.3, delay: idx * 0.05 }}
-                  className="border-t border-border hover:bg-muted/50 transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium text-foreground">{row.weight}g</td>
-                  <td className="px-4 py-3 text-right font-semibold text-emerald-500">
-                    {formatCurrency(row.sellPrice)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold text-slate-400">
-                    {formatCurrency(row.buybackPrice)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm text-amber-600">
-                    {formatCurrency(row.margin)}
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-lg p-4 text-center sm:text-left">
+          <p className="text-xs md:text-sm text-slate-400 font-semibold">Harga Buyback /gram</p>
+          <p className="text-xl md:text-3xl font-bold text-slate-400 mt-1">{formatCurrency(basePrice.buyback_price_per_gram)}</p>
         </div>
       </div>
 
-      {/* Buyback Form */}
-      <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50 border border-border rounded-xl p-6 space-y-6">
-        <h3 className="text-2xl font-bold text-foreground">Formulir Buyback Emas</h3>
+      {/* Buyback Calculator */}
+      <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50 border border-border rounded-xl p-4 md:p-6 space-y-6">
+        <h3 className="text-lg md:text-2xl font-bold text-foreground">Hitung Estimasi Buyback</h3>
 
-        {/* Weight Selection */}
+        {/* Buttons - Use Flex Wrap for safety on small screens */}
         <div>
-          <label className="block text-sm font-semibold text-foreground mb-3">
-            Pilih Berat Emas (gram)
-          </label>
-          <div className="grid grid-cols-5 md:grid-cols-9 gap-2">
+          <label className="block text-sm font-semibold text-foreground mb-3">Pilih Berat (gram)</label>
+          <div className="flex flex-wrap gap-2">
             {WEIGHT_OPTIONS.map((weight) => (
               <button
                 key={weight}
                 onClick={() => setSelectedWeight(weight)}
-                className={`py-2 px-2 rounded-lg font-semibold text-sm transition-all ${
+                className={`py-2 px-3 md:px-4 rounded-lg font-semibold text-xs md:text-sm transition-all flex-grow sm:flex-grow-0 ${
                   selectedWeight === weight
                     ? "bg-gold text-black shadow-lg scale-105"
                     : "bg-white dark:bg-slate-700 text-foreground border border-border hover:border-gold"
@@ -345,49 +235,38 @@ const AntamPriceListWithForm = ({ basePrice, onRefresh, isRefreshing }: AntamPri
           </div>
         </div>
 
-        {/* Estimated Price Display */}
-        <div className="bg-gradient-to-r from-gold/10 to-amber-500/10 border-2 border-gold rounded-xl p-6 text-center space-y-2">
-          <p className="text-sm text-muted-foreground font-medium">Estimasi Harga Bersih</p>
-          <p className="text-5xl font-bold text-gold">{formatCurrency(estimatedPrice)}</p>
-          <p className="text-sm text-muted-foreground">untuk {selectedWeight}g emas Antam</p>
+        {/* Estimate Box */}
+        <div className="bg-gradient-to-r from-gold/10 to-amber-500/10 border-2 border-gold rounded-xl p-4 md:p-6 text-center">
+          <p className="text-xs md:text-sm text-muted-foreground font-medium">Estimasi yang Anda terima</p>
+          <p className="text-3xl md:text-5xl font-bold text-gold my-2">{formatCurrency(estimatedPrice)}</p>
+          <p className="text-xs text-muted-foreground">untuk {selectedWeight}g emas Antam</p>
         </div>
 
-        {/* Form Fields */}
+        {/* Inputs */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-semibold text-foreground mb-2">Nama Lengkap *</label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Masukkan nama Anda"
-              className="w-full px-4 py-2 border border-border rounded-lg bg-white dark:bg-slate-700 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-gold"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-foreground mb-2">Nomor HP/WA *</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="628xxxxxxxxxx"
-              className="w-full px-4 py-2 border border-border rounded-lg bg-white dark:bg-slate-700 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-gold"
-            />
-          </div>
+          <input
+            type="text"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Nama Lengkap"
+            className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground text-sm focus:ring-2 focus:ring-gold outline-none"
+          />
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Nomor WhatsApp"
+            className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground text-sm focus:ring-2 focus:ring-gold outline-none"
+          />
         </div>
 
-        {/* Submit Button */}
         <button
           onClick={handleWhatsApp}
-          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-all transform hover:scale-105 active:scale-95"
+          className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-all active:scale-95"
         >
           <MessageCircle className="w-5 h-5" />
-          Hubungi via WhatsApp
+          Ajukan Buyback via WA
         </button>
-
-        <p className="text-xs text-muted-foreground text-center">
-          💡 Estimasi ini bersifat indikatif. Harga final akan dikonfirmasi setelah verifikasi kondisi emas Anda.
-        </p>
       </div>
     </div>
   );

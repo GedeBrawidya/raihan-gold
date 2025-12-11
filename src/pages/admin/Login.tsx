@@ -67,7 +67,6 @@ export const AdminLoginPage: React.FC = () => {
           </div>
         </form>
 
-        <div className="mt-4 text-sm text-white/70">Use Supabase account (email/password). Example admin email: <strong className="text-white">gedepujaa9@gmail.com</strong></div>
       </motion.div>
     </div>
   );

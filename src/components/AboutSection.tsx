@@ -26,42 +26,44 @@ export const AboutSection = () => {
   ];
 
   return (
-    <section id="tentang" className="py-24 bg-secondary">
+    <section id="tentang" className="py-12 md:py-24 bg-secondary">
       <div className="container mx-auto px-4">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          {/* Content */}
+        {/* Layout Utama: 1 Kolom di Mobile, 2 Kolom di Desktop */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-16 items-start lg:items-center">
+          
+          {/* Bagian Kiri: Teks & Judul */}
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
+            className="text-center lg:text-left" // Mobile: Center, Desktop: Left
           >
-            <span className="inline-block px-4 py-1 bg-gold/10 text-gold text-sm font-medium rounded-full mb-4">
+            <span className="inline-block px-3 py-1 bg-gold/10 text-gold text-xs md:text-sm font-medium rounded-full mb-4">
               Tentang Kami
             </span>
-            <h2 className="text-3xl md:text-5xl font-serif font-bold text-cream mb-6">
+            <h2 className="text-3xl md:text-5xl font-serif font-bold text-cream mb-4 md:mb-6 leading-tight">
               Mitra Terpercaya untuk{" "}
-              <span className="luxury-text">Jual & Beli Emas</span> Anda
+              <span className="luxury-text block lg:inline">Jual & Beli Emas</span> Anda
             </h2>
-            <p className="text-cream/70 leading-relaxed mb-8">
+            <p className="text-cream/70 leading-relaxed mb-6 text-sm md:text-base">
               Raihan Gold hadir sebagai solusi jual & beli emas terpercaya di Indonesia. 
               Dengan pengalaman bertahun-tahun dalam industri logam mulia, kami berkomitmen 
-              memberikan produk berkualitas tinggi dan pelayanan terbaik untuk setiap pelanggan.
+              memberikan produk berkualitas tinggi.
             </p>
-            <p className="text-cream/70 leading-relaxed">
+            <p className="text-cream/70 leading-relaxed text-sm md:text-base hidden md:block">
               Kami menyediakan berbagai pilihan emas ANTAM (batangan & koin) dengan sertifikat resmi. 
-              Tersedia pilihan berat dan nominal sesuai kebutuhan jual/beli Anda. Kepuasan dan kepercayaan 
-              pelanggan adalah prioritas utama kami.
+              Kepuasan dan kepercayaan pelanggan adalah prioritas utama kami.
             </p>
           </motion.div>
 
-          {/* Features Grid */}
+          {/* Bagian Kanan: Grid Kartu Fitur */}
           <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="grid sm:grid-cols-2 gap-6"
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
             {features.map((feature, index) => (
               <motion.div
@@ -70,17 +72,23 @@ export const AboutSection = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
-                className="p-6 rounded-2xl bg-slate-medium border border-gold/10 hover:border-gold/30 transition-colors"
+                // Card Style: Padding disesuaikan biar enak dilihat di HP
+                className="p-5 rounded-2xl bg-slate-medium border border-gold/10 hover:border-gold/30 transition-colors flex flex-row sm:flex-col items-center sm:items-start gap-4 text-left"
               >
-                <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center mb-4">
+                {/* Icon Container */}
+                <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center shrink-0">
                   <feature.icon className="w-6 h-6 text-gold" />
                 </div>
-                <h3 className="text-lg font-serif font-semibold text-cream mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-cream/60 text-sm">
-                  {feature.description}
-                </p>
+                
+                {/* Text Container */}
+                <div>
+                  <h3 className="text-base md:text-lg font-serif font-semibold text-cream mb-1 md:mb-2">
+                    {feature.title}
+                  </h3>
+                  <p className="text-cream/60 text-xs md:text-sm leading-relaxed line-clamp-2 sm:line-clamp-none">
+                    {feature.description}
+                  </p>
+                </div>
               </motion.div>
             ))}
           </motion.div>

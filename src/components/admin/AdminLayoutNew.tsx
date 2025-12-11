@@ -1,7 +1,15 @@
 import React, { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
-import { Menu, X, LogOut, Home, Package, DollarSign } from "lucide-react";
+import { 
+  Menu, 
+  X, 
+  LogOut, 
+  Home, 
+  Package, 
+  DollarSign, 
+  MessageSquare // 👈 1. SAYA TAMBAHKAN IMPORT ICON INI
+} from "lucide-react";
 
 interface NavLink {
   label: string;
@@ -13,6 +21,8 @@ const navLinks: NavLink[] = [
   { label: "Dashboard", icon: <Home size={20} />, path: "/admin/dashboard" },
   { label: "Gold Prices", icon: <DollarSign size={20} />, path: "/admin/gold-prices" },
   { label: "Products", icon: <Package size={20} />, path: "/admin/products" },
+  // 👇 2. SAYA TAMBAHKAN MENU REVIEWS DI SINI
+  { label: "Reviews", icon: <MessageSquare size={20} />, path: "/admin/reviews" }, 
 ];
 
 export const AdminLayout: React.FC = () => {

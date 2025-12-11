@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSupabase, getDailyPrice, updateDailyPrice, AntamDailyPrice } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { DollarSign, Save, Loader2 } from "lucide-react";
 
 export const DailyPriceForm = () => {
@@ -114,48 +115,28 @@ export const DailyPriceForm = () => {
       {/* Form */}
       <div className="space-y-6">
         {/* Harga Jual */}
-        <div>
-          <label className="block text-sm font-semibold text-foreground mb-2">
-            Harga Jual Dasar (per gram)
-          </label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground font-medium">
-              Rp
-            </span>
-            <input
-              type="number"
-              value={sellPrice}
-              onChange={(e) => setSellPrice(e.target.value)}
-              placeholder="0"
-              className="w-full pl-12 pr-4 py-3 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Harga dasar per gram untuk penjualan emas Antam
-          </p>
-        </div>
+        <CurrencyInput
+          label="Harga Jual Dasar (per gram)"
+          value={sellPrice}
+          onChange={(value) => setSellPrice(String(value))}
+          placeholder="0"
+          required
+        />
+        <p className="text-xs text-muted-foreground -mt-4">
+          Harga dasar per gram untuk penjualan emas Antam
+        </p>
 
         {/* Harga Buyback */}
-        <div>
-          <label className="block text-sm font-semibold text-foreground mb-2">
-            Harga Buyback Dasar (per gram)
-          </label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground font-medium">
-              Rp
-            </span>
-            <input
-              type="number"
-              value={buybackPrice}
-              onChange={(e) => setBuybackPrice(e.target.value)}
-              placeholder="0"
-              className="w-full pl-12 pr-4 py-3 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Harga dasar per gram untuk pembelian kembali (buyback) emas Antam
-          </p>
-        </div>
+        <CurrencyInput
+          label="Harga Buyback Dasar (per gram)"
+          value={buybackPrice}
+          onChange={(value) => setBuybackPrice(String(value))}
+          placeholder="0"
+          required
+        />
+        <p className="text-xs text-muted-foreground -mt-4">
+          Harga dasar per gram untuk pembelian kembali (buyback) emas Antam
+        </p>
 
         {/* Info Box */}
         <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/30 rounded-lg p-4">

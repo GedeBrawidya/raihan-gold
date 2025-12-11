@@ -11,7 +11,7 @@ import {
 } from "@/lib/supabase";
 import { formatCurrency } from "@/lib/formatting";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit2, Trash2, X, Package } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Package, RefreshCw } from "lucide-react";
 
 interface Product {
   id: string;
@@ -46,30 +46,22 @@ export const ProductsPage: React.FC = () => {
 
   // Load products and base gold price
   useEffect(() => {
-    loadProducts();
-    loadBaseGoldPrice();
+    loadData();
   }, []);
 
-  const loadProducts = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const data = await getProducts(supabase);
-      setProducts(data);
+      const [productsData, basePriceData] = await Promise.all([
+        getProducts(supabase),
+        getBaseGoldPrice(supabase)
+      ]);
+      setProducts(productsData || []);
+      setBaseGoldPrice(basePriceData);
     } catch (err: any) {
       toast({ title: "Error", description: err.message });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadBaseGoldPrice = async () => {
-    try {
-      const price = await getBaseGoldPrice(supabase);
-      if (price) {
-        setBaseGoldPrice(price);
-      }
-    } catch (err: any) {
-      console.error("Error loading base gold price:", err);
     }
   };
 
@@ -101,7 +93,7 @@ export const ProductsPage: React.FC = () => {
   const handleWeightChange = (weight: string) => {
     setFormData({ ...formData, weight });
     
-    // Auto-calculate price if base gold price is available
+    // Auto-calculate price when adding/editing
     if (weight && baseGoldPrice) {
       const weightNum = parseFloat(weight);
       if (!isNaN(weightNum) && weightNum > 0) {
@@ -127,6 +119,7 @@ export const ProductsPage: React.FC = () => {
   const handleSave = async () => {
     try {
       const weight = parseFloat(formData.weight);
+      // Simpan harga statis ke DB sebagai backup/history
       const price = parseFloat(formData.price);
 
       if (!formData.name.trim()) {
@@ -158,7 +151,7 @@ export const ProductsPage: React.FC = () => {
 
       setModalOpen(false);
       resetForm();
-      await loadProducts();
+      await loadData(); // Reload all data
     } catch (err: any) {
       toast({ title: "Error", description: err.message });
     }
@@ -170,13 +163,11 @@ export const ProductsPage: React.FC = () => {
     try {
       await deleteProduct(supabase, id);
       toast({ title: "Success", description: "Product deleted" });
-      await loadProducts();
+      await loadData();
     } catch (err: any) {
       toast({ title: "Error", description: err.message });
     }
   };
-
-  
 
   if (loading) {
     return (
@@ -194,7 +185,7 @@ export const ProductsPage: React.FC = () => {
             Manajemen Produk
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
-            Kelola katalog produk emas Anda
+            Kelola katalog produk emas Anda. Harga otomatis menyesuaikan Harga Dasar.
           </p>
         </div>
         <button
@@ -202,92 +193,103 @@ export const ProductsPage: React.FC = () => {
             resetForm();
             setModalOpen(true);
           }}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#D4AF37] text-black rounded-lg hover:bg-[#B8860B] transition-colors font-medium"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[#D4AF37] text-black rounded-lg hover:bg-[#B8860B] transition-colors font-medium shadow-md"
         >
           <Plus size={18} />
           Tambah Produk
         </button>
       </div>
 
+      {/* Info Bar */}
+      {baseGoldPrice && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center gap-3 text-sm">
+          <RefreshCw className="w-4 h-4 text-blue-500" />
+          <span className="text-slate-700 dark:text-slate-300">
+            Harga Dasar Emas Aktif: <strong>{formatCurrency(baseGoldPrice.sell_price_per_gram)}/gram</strong>. 
+            Semua produk di bawah ini dikalkulasi berdasarkan harga ini.
+          </span>
+        </div>
+      )}
+
       {/* Products Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.map((product) => (
-          <div
-            key={product.id}
-            className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-lg transition-shadow"
-          >
-            {/* Image */}
-            <div className="h-40 bg-slate-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden">
-              {product.image_url ? (
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="text-slate-400 dark:text-slate-500 text-sm">
-                  No Image
-                </div>
-              )}
-            </div>
+        {products.map((product) => {
+           // 🔥 ADMIN JUGA MENAMPILKAN HARGA LIVE 🔥
+           const currentPrice = baseGoldPrice 
+             ? baseGoldPrice.sell_price_per_gram * product.weight 
+             : product.price;
 
-            {/* Content */}
-            <div className="p-4 space-y-3">
-              <div>
-                <h3 className="font-semibold text-slate-900 dark:text-white">
-                  {product.name}
-                </h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
-                  {product.description}
-                </p>
+           return (
+            <div
+              key={product.id}
+              className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-lg transition-shadow"
+            >
+              {/* Image */}
+              <div className="h-40 bg-slate-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden relative">
+                {product.image_url ? (
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-slate-400 dark:text-slate-500 text-sm">
+                    No Image
+                  </div>
+                )}
+                {/* Overlay Berat */}
+                <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded font-bold">
+                  {product.weight}g
+                </div>
               </div>
 
-              <div className="flex gap-4 text-sm">
+              {/* Content */}
+              <div className="p-4 space-y-3">
                 <div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Weight</p>
-                  <p className="font-semibold text-slate-900 dark:text-white">
-                    {product.weight}g
+                  <h3 className="font-semibold text-slate-900 dark:text-white truncate">
+                    {product.name}
+                  </h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-1">
+                    {product.description}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Price</p>
-                  <p className="font-semibold text-slate-900 dark:text-white text-xs">
-                    {formatCurrency(product.price)}
-                  </p>
+
+                <div className="flex justify-between items-end border-t border-slate-100 dark:border-slate-700 pt-3">
+                  <div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">Live Price</p>
+                    <p className="font-bold text-[#D4AF37] text-lg">
+                      {formatCurrency(currentPrice)}
+                    </p>
+                  </div>
+                  <div className={`text-xs px-2 py-1 rounded-full font-medium ${
+                    product.is_active 
+                      ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" 
+                      : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"
+                  }`}>
+                    {product.is_active ? "Active" : "Inactive"}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => startEdit(product)}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/30 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors text-xs font-medium border border-slate-200 dark:border-slate-600"
+                  >
+                    <Edit2 size={14} />
+                    Edit Detail
+                  </button>
+                  <button
+                    onClick={() => handleDelete(product.id)}
+                    className="px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors text-xs font-medium border border-red-100 dark:border-red-900/50"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
-                <span
-                  className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                    product.is_active
-                      ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-500"
-                      : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-400"
-                  }`}
-                >
-                  {product.is_active ? "Active" : "Inactive"}
-                </span>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={() => startEdit(product)}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/30 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors text-xs font-medium"
-                >
-                  <Edit2 size={14} />
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(product.id)}
-                  className="px-3 py-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors text-xs font-medium"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {products.length === 0 && (
@@ -300,8 +302,8 @@ export const ProductsPage: React.FC = () => {
       {/* Modal */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white dark:bg-slate-800 p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="sticky top-0 bg-white dark:bg-slate-800 p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between z-10">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                 {editingId ? "Edit Product" : "Tambah Produk"}
               </h2>
@@ -310,31 +312,31 @@ export const ProductsPage: React.FC = () => {
                   setModalOpen(false);
                   resetForm();
                 }}
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-5">
               {/* Product Name */}
               <div>
                 <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                  Product Name *
+                  Nama Produk *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Gold Bar 100g"
+                  placeholder="Contoh: Emas Antam 5g Certieye"
                 />
               </div>
 
               {/* Description */}
               <div>
                 <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                  Description
+                  Deskripsi
                 </label>
                 <textarea
                   value={formData.description}
@@ -343,7 +345,7 @@ export const ProductsPage: React.FC = () => {
                   }
                   className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   rows={3}
-                  placeholder="Product description..."
+                  placeholder="Keterangan produk, edisi, tahun, dll..."
                 />
               </div>
 
@@ -351,7 +353,7 @@ export const ProductsPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                    Weight (g) *
+                    Berat (gram) *
                   </label>
                   <input
                     type="number"
@@ -363,13 +365,13 @@ export const ProductsPage: React.FC = () => {
                   />
                   {baseGoldPrice && (
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      💰 Harga per gram: {formatCurrency(baseGoldPrice.sell_price_per_gram)}
+                      Basis: {formatCurrency(baseGoldPrice.sell_price_per_gram)}/g
                     </p>
                   )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                    Price (IDR) *
+                    Harga (IDR) *
                   </label>
                   <input
                     type="number"
@@ -379,8 +381,8 @@ export const ProductsPage: React.FC = () => {
                     placeholder="0"
                   />
                   {formData.weight && baseGoldPrice && (
-                    <p className="text-xs text-emerald-500 dark:text-emerald-400 mt-1">
-                      ✓ Auto: {formatCurrency(parseFloat(formData.price) || 0)}
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                      <RefreshCw size={10} /> Auto-calculated
                     </p>
                   )}
                 </div>
@@ -389,11 +391,11 @@ export const ProductsPage: React.FC = () => {
               {/* Image Upload */}
               <div>
                 <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                  Product Image
+                  Foto Produk
                 </label>
-                <div className="space-y-2">
+                <div className="flex items-start gap-4">
                   {formData.image_url && (
-                    <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600">
+                    <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-600 shrink-0">
                       <img
                         src={formData.image_url}
                         alt="preview"
@@ -401,60 +403,66 @@ export const ProductsPage: React.FC = () => {
                       />
                       <button
                         onClick={() => setFormData({ ...formData, image_url: "" })}
-                        className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded hover:bg-red-700"
+                        className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded hover:bg-red-700 shadow-sm"
                       >
-                        <X size={14} />
+                        <X size={12} />
                       </button>
                     </div>
                   )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleImageUpload(file);
-                    }}
-                    disabled={uploading}
-                    className="block w-full text-sm text-slate-600 dark:text-slate-400 file:mr-4 file:px-4 file:py-2 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#D4AF37] file:text-black hover:file:bg-[#B8860B] cursor-pointer"
-                  />
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImageUpload(file);
+                      }}
+                      disabled={uploading}
+                      className="block w-full text-sm text-slate-600 dark:text-slate-400 file:mr-4 file:px-4 file:py-2 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#D4AF37] file:text-black hover:file:bg-[#B8860B] cursor-pointer"
+                    />
+                    <p className="text-xs text-slate-500 mt-2">Format: JPG, PNG, WEBP. Max 2MB.</p>
+                  </div>
                 </div>
               </div>
 
               {/* Active Status */}
-              <div className="flex items-center gap-3">
+              <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg flex items-center gap-3 border border-slate-200 dark:border-slate-700">
                 <input
                   type="checkbox"
                   id="is_active"
                   checked={formData.is_active}
                   onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="w-4 h-4 rounded border-slate-300"
+                  className="w-5 h-5 rounded border-slate-300 text-[#D4AF37] focus:ring-[#D4AF37]"
                 />
-                <label
-                  htmlFor="is_active"
-                  className="text-sm font-medium text-slate-900 dark:text-white cursor-pointer"
-                >
-                  Active Product
-                </label>
+                <div>
+                  <label
+                    htmlFor="is_active"
+                    className="text-sm font-bold text-slate-900 dark:text-white cursor-pointer block"
+                  >
+                    Status Produk Aktif
+                  </label>
+                  <p className="text-xs text-slate-500">Jika dimatikan, produk tidak akan muncul di katalog website.</p>
+                </div>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="sticky bottom-0 bg-white dark:bg-slate-800 p-6 border-t border-slate-200 dark:border-slate-700 flex gap-3 justify-end">
+            <div className="sticky bottom-0 bg-white dark:bg-slate-800 p-6 border-t border-slate-200 dark:border-slate-700 flex gap-3 justify-end rounded-b-lg">
               <button
                 onClick={() => {
                   setModalOpen(false);
                   resetForm();
                 }}
-                className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors font-medium"
+                className="px-5 py-2.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors font-medium"
               >
-                Cancel
+                Batal
               </button>
               <button
                 onClick={handleSave}
                 disabled={uploading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+                className="px-5 py-2.5 bg-[#D4AF37] text-black rounded-lg hover:bg-[#B8860B] transition-colors font-bold disabled:opacity-50 shadow-md"
               >
-                {uploading ? "Uploading..." : editingId ? "Update" : "Create"}
+                {uploading ? "Mengupload..." : editingId ? "Simpan Perubahan" : "Buat Produk"}
               </button>
             </div>
           </div>

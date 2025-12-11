@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useSupabase, listProducts } from "@/lib/supabase";
+import { useSupabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/goldData";
 import { Edit, Trash2 } from "lucide-react";
@@ -19,8 +19,9 @@ export const ProductList: React.FC<Props> = ({ onReload, onEdit }) => {
   async function load() {
     try {
       setLoading(true);
-      const rows = await listProducts(supabase);
-      setProducts(rows ?? []);
+      const { data, error } = await supabase.from("products").select("*");
+      if (error) throw error;
+      setProducts(data ?? []);
     } catch (err: any) {
       console.error("listProducts error:", err);
       toast({ title: "Error", description: err.message || String(err) });

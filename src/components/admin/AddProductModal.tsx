@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useSupabase, uploadProductImage } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/formatting";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 
 const WEIGHT_OPTIONS = [0.5, 1, 2, 3, 5, 10, 25, 50, 100];
 const EDITION_OPTIONS = ["Kemasan Terbaru", "Kemasan Retro/Lama"];
@@ -165,17 +166,23 @@ export const AddProductModal: React.FC<Props> = ({ open, onClose, onSuccess, pro
                 ))}
               </select>
             </div>
-            <div>
-              <label className="text-sm text-white/80">Harga Dasar (IDR)</label>
-              <input type="number" value={price as any} onChange={(e) => setPrice(e.target.value)} required placeholder="0" className="w-full mt-2 p-3 rounded-lg bg-slate-900 border border-slate-700 text-white" />
-            </div>
+            <CurrencyInput
+              label="Harga Dasar (IDR)"
+              value={price}
+              onChange={(value) => setPrice(value)}
+              placeholder="0"
+              required
+            />
           </div>
 
-          <div>
-            <label className="text-sm text-white/80">Margin / Fee Cetak (IDR)</label>
-            <input type="number" value={margin as any} onChange={(e) => setMargin(e.target.value)} placeholder="0" className="w-full mt-2 p-3 rounded-lg bg-slate-900 border border-slate-700 text-white" />
-            <p className="text-xs text-white/60 mt-1">Biaya tambahan yang ditambahkan ke harga dasar untuk produk ini</p>
-          </div>
+          <CurrencyInput
+            label="Margin / Fee Cetak (IDR)"
+            value={margin}
+            onChange={(value) => setMargin(value)}
+            placeholder="0"
+            className="mb-2"
+          />
+          <p className="text-xs text-white/60 mb-4">Biaya tambahan yang ditambahkan ke harga dasar untuk produk ini</p>
 
           <div>
             <label className="text-sm text-white/80">Deskripsi</label>
