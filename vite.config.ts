@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
+// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -17,32 +18,31 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  // 👇 TAMBAHKAN BAGIAN BUILD INI 👇
+  // 👇 TAMBAHKAN BAGIAN BUILD INI
   build: {
-    // Naikkan batas peringatan jadi 1000 KB (1 MB) biar ga berisik
-    chunkSizeWarningLimit: 1000, 
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // Memisahkan library besar ke chunk sendiri
           if (id.includes('node_modules')) {
-            // Pisahkan Library Berat ke file sendiri
             if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
-              return 'vendor-react';
-            }
-            if (id.includes('@supabase')) {
-              return 'vendor-supabase';
+              return 'react-vendor';
             }
             if (id.includes('framer-motion')) {
-              return 'vendor-framer';
+              return 'framer-motion';
+            }
+            if (id.includes('@supabase')) {
+              return 'supabase';
             }
             if (id.includes('lucide-react')) {
-              return 'vendor-icons';
+              return 'icons';
             }
-            // Sisanya gabung jadi satu
-            return 'vendor-utils';
+            // Sisanya masuk ke vendor umum
+            return 'vendor';
           }
         },
       },
     },
+    chunkSizeWarningLimit: 1000, // Menaikkan batas warning ke 1000kb (1MB) biar ga berisik
   },
 }));
