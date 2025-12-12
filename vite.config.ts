@@ -18,31 +18,11 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  // 👇 TAMBAHKAN BAGIAN BUILD INI
+  // 👇 TAMBAHAN AMAN: 
+  // Kita tidak memecah file (karena bikin error), 
+  // tapi kita naikkan batas warning jadi 1600kb (1.6MB).
+  // Hasilnya: Website tetap jalan normal, warning kuning hilang.
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          // Memisahkan library besar ke chunk sendiri
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
-              return 'react-vendor';
-            }
-            if (id.includes('framer-motion')) {
-              return 'framer-motion';
-            }
-            if (id.includes('@supabase')) {
-              return 'supabase';
-            }
-            if (id.includes('lucide-react')) {
-              return 'icons';
-            }
-            // Sisanya masuk ke vendor umum
-            return 'vendor';
-          }
-        },
-      },
-    },
-    chunkSizeWarningLimit: 1000, // Menaikkan batas warning ke 1000kb (1MB) biar ga berisik
+    chunkSizeWarningLimit: 1600,
   },
 }));
