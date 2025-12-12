@@ -80,7 +80,6 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
           </p>
         </div>
 
-        {/* Button */}
         <Button
           className="
             w-full bg-green-600 hover:bg-green-700 
@@ -94,11 +93,13 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
             href={generateWhatsAppLink(product.name, product.weight, formattedPrice)}
             target="_blank"
             rel="noopener noreferrer"
+            className="block w-full"
           >
             <MessageCircle className="w-4 h-4 mr-1 inline-block" />
             Beli via WhatsApp
           </a>
         </Button>
+
       </div>
     </motion.div>
   );
