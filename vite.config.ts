@@ -18,11 +18,11 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  // 👇 TAMBAHAN AMAN: 
-  // Kita tidak memecah file (karena bikin error), 
-  // tapi kita naikkan batas warning jadi 1600kb (1.6MB).
-  // Hasilnya: Website tetap jalan normal, warning kuning hilang.
+  // 👇 SOLUSI AMAN:
+  // Kita TIDAK memecah file secara manual (karena berisiko blank putih).
+  // Kita cuma menaikkan batas limit warning jadi 2000kb (2MB).
+  // Hasilnya: Website lancar, warning hilang.
   build: {
-    chunkSizeWarningLimit: 1600,
+    chunkSizeWarningLimit: 2000, 
   },
 }));
