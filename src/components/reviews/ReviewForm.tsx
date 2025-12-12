@@ -52,7 +52,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ onSuccess }) => {
 
       toast({
         title: "Terkirim!",
-        description: "Review Anda menunggu persetujuan admin.",
+        description: "Terima kasih atas ulasan Anda.",
         className: "bg-slate-900 text-gold border-slate-800",
       });
 
