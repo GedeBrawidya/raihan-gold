@@ -40,13 +40,13 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
 
         {/* Badge Berat */}
         <div className="absolute top-2 left-2 z-20">
-          <span className="
-            px-2 py-0.5 
-            bg-[#D4AF37] text-black 
-            text-[10px] md:text-xs font-bold 
-            rounded-md shadow
-            inline-flex items-center gap-1
-          ">
+          <span
+            className="
+              px-2 py-0.5 bg-[#D4AF37] text-black 
+              text-[10px] md:text-xs font-bold 
+              rounded-md shadow inline-flex items-center gap-1
+            "
+          >
             <Weight size={10} />
             {product.weight} gram
           </span>
@@ -56,12 +56,13 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
       {/* Content */}
       <div className="p-4 flex flex-col flex-1">
         <div className="flex-1">
-          <h3 className="
-            text-base md:text-lg 
-            font-serif font-bold 
-            text-foreground mb-1
-            line-clamp-1 group-hover:text-[#D4AF37] transition-colors
-          ">
+          <h3
+            className="
+              text-base md:text-lg font-serif font-bold 
+              text-foreground mb-1 line-clamp-1 
+              group-hover:text-[#D4AF37] transition-colors
+            "
+          >
             {product.name}
           </h3>
 
@@ -74,18 +75,20 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
 
         {/* Price */}
         <div className="mb-3">
-          <p className="text-[10px] md:text-xs text-muted-foreground mb-1">Estimasi Harga</p>
+          <p className="text-[10px] md:text-xs text-muted-foreground mb-1">
+            Estimasi Harga
+          </p>
           <p className="text-xl md:text-2xl font-bold text-[#D4AF37]">
             {formattedPrice}
           </p>
         </div>
 
+        {/* CTA BUTTON — FULL RESPONSIVE FIX */}
         <Button
           className="
             w-full bg-green-600 hover:bg-green-700 
-            text-white font-semibold text-sm 
-            py-2 md:py-3
-            shadow-md hover:shadow-lg
+            text-white font-semibold text-sm shadow-md hover:shadow-lg
+            py-2 md:py-3 min-h-[42px]
           "
           asChild
         >
@@ -93,15 +96,16 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
             href={generateWhatsAppLink(product.name, product.weight, formattedPrice)}
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full"
+            className="
+              w-full flex items-center justify-center 
+              gap-2 whitespace-normal text-center
+            "
           >
-            <MessageCircle className="w-4 h-4 mr-1 inline-block" />
-            Beli via WhatsApp
+            <MessageCircle className="w-4 h-4" />
+            <span className="leading-snug">Beli via WhatsApp</span>
           </a>
         </Button>
-
       </div>
     </motion.div>
   );
 };
-
