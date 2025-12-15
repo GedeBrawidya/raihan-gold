@@ -119,12 +119,12 @@ export const ProductCatalog = () => {
         {/* ==========================
             FILTERS
         =========================== */}
-        <div className="mb-10 space-y-6">
+        <div className="mb-10 space-y-6">g
           
           {/* Filter 1: Kategori */}
           <div>
             <h3 className="text-xs md:text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
-              Filter Kategori
+              Filter Tahun
             </h3>
             <select
               value={selectedCategoryId ?? ""}
