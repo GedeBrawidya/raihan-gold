@@ -1,8 +1,14 @@
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, RefreshCw, Clock, MessageCircle } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/formatting";
+import { formatCurrency } from "@/lib/formatting";
 import { useState, useEffect } from "react";
-import { useSupabase, getGoldCategories, getSellPricesByCategory, getBuybackPricesByCategory, GoldCategory, GoldWeightPrice } from "@/lib/supabase";
+import { 
+  useSupabase, 
+  getGoldCategories, 
+  getSellPricesByCategory, 
+  getBuybackPricesByCategory, 
+  GoldCategory 
+} from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -82,7 +88,7 @@ export const GoldPriceTable = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-10 md:mb-16"
         >
-          <span className="inline-block px-3 py-1 bg-gold/10 text-gold text-xs md:text-sm font-medium rounded-full mb-4">
+          <span className="inline-block px-3 py-1 bg-[#D4AF37]/10 text-[#D4AF37] text-xs md:text-sm font-medium rounded-full mb-4">
             💰 Harga Terkini
           </span>
           <h2 className="text-3xl md:text-5xl font-serif font-bold text-foreground mb-4 break-words">
@@ -132,7 +138,7 @@ export const GoldPriceTable = () => {
                 onClick={() => setActiveTab("sell")}
                 className={`flex-1 px-2 py-3 md:px-6 md:py-4 font-semibold transition-all flex items-center justify-center gap-2 text-xs md:text-base ${
                   activeTab === "sell"
-                    ? "bg-gold text-black shadow-sm"
+                    ? "bg-[#D4AF37] text-black shadow-sm"
                     : "text-foreground hover:bg-muted/50"
                 }`}
               >
@@ -143,7 +149,7 @@ export const GoldPriceTable = () => {
                 onClick={() => setActiveTab("buyback")}
                 className={`flex-1 px-2 py-3 md:px-6 md:py-4 font-semibold transition-all flex items-center justify-center gap-2 text-xs md:text-base ${
                   activeTab === "buyback"
-                    ? "bg-gold text-black shadow-sm"
+                    ? "bg-[#D4AF37] text-black shadow-sm"
                     : "text-foreground hover:bg-muted/50"
                 }`}
               >
@@ -167,7 +173,7 @@ export const GoldPriceTable = () => {
                     <button
                       onClick={loadPrices}
                       disabled={isRefreshing}
-                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gold/10 hover:bg-gold/20 text-gold rounded-lg transition-colors disabled:opacity-50 text-sm"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 text-[#D4AF37] rounded-lg transition-colors disabled:opacity-50 text-sm"
                     >
                       <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
                       Refresh Data
@@ -191,7 +197,7 @@ export const GoldPriceTable = () => {
                           >
                             <td className="px-4 md:px-6 py-3 md:py-5">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 md:w-12 md:h-12 rounded-lg bg-gradient-to-br from-gold to-amber-500 flex items-center justify-center shadow-sm shrink-0">
+                                <div className="w-8 h-8 md:w-12 md:h-12 rounded-lg bg-gradient-to-br from-[#D4AF37] to-amber-500 flex items-center justify-center shadow-sm shrink-0">
                                   <span className="text-white text-[10px] md:text-xs font-bold">{row.weight}g</span>
                                 </div>
                                 <div className="flex flex-col">
@@ -241,7 +247,10 @@ export const GoldPriceTable = () => {
   );
 };
 
-// Sub-Component for Buyback
+// ==========================================
+// SUB-COMPONENT: Buyback Logic (Fix Applied)
+// ==========================================
+
 const AntamPriceListWithForm = ({
   categoryId,
   buybackPrices,
@@ -264,8 +273,15 @@ const AntamPriceListWithForm = ({
     }
   }, [buybackPrices]);
 
-  const selectedPrice = buybackPrices.find((p) => p.weight === selectedWeight);
-  const estimatedPrice = selectedPrice?.price || 0;
+  // --- LOGIC PERBAIKAN ---
+  const selectedPriceData = buybackPrices.find((p) => p.weight === selectedWeight);
+
+  // 1. Total Estimasi: AMBIL LANGSUNG DARI DB (Admin sudah input harga Total)
+  const totalEstimate = selectedPriceData?.price || 0;
+
+  // 2. Harga Per Gram: Total Estimasi dibagi Berat
+  const pricePerGram = selectedWeight > 0 ? (totalEstimate / selectedWeight) : 0;
+  // -----------------------
 
   const handleWhatsApp = () => {
     if (!fullName.trim() || !phone.trim()) {
@@ -277,7 +293,7 @@ const AntamPriceListWithForm = ({
       return;
     }
 
-    const formattedTotal = formatCurrency(estimatedPrice);
+    const formattedTotal = formatCurrency(totalEstimate);
     const text = `Halo Admin Raihan Gold, 👋
 
 Saya ingin mengajukan *Buyback* (Jual Kembali) emas dengan detail sebagai berikut:
@@ -302,15 +318,20 @@ Mohon informasi mengenai prosedur penyerahan barang dan pengecekan selanjutnya. 
     <div className="space-y-6 md:space-y-8">
       {/* Price Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-        <div className="bg-gold/10 dark:bg-[#2b2417]/10 border border-gold/20 rounded-lg p-4 text-center sm:text-left">
+        {/* Kiri: Harga Per Gram (Hasil Pembagian) */}
+        <div className="bg-[#D4AF37]/10 dark:bg-[#2b2417]/10 border border-[#D4AF37]/20 rounded-lg p-4 text-center sm:text-left">
           <p className="text-xs md:text-sm text-[#D4AF37] font-semibold">Harga Buyback /gram</p>
           <p className="text-xl md:text-3xl font-bold text-[#D4AF37] mt-1">
-            {selectedPrice ? formatCurrency(selectedPrice.price / selectedWeight) : "—"}
+            {formatCurrency(pricePerGram)}
           </p>
         </div>
+
+        {/* Kanan: Total Estimasi (Harga Asli dari Admin) */}
         <div className="bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-lg p-4 text-center sm:text-left">
           <p className="text-xs md:text-sm text-slate-400 font-semibold">Total Estimasi</p>
-          <p className="text-xl md:text-3xl font-bold text-slate-400 mt-1">{formatCurrency(estimatedPrice)}</p>
+          <p className="text-xl md:text-3xl font-bold text-slate-400 mt-1">
+             {formatCurrency(totalEstimate)}
+          </p>
         </div>
       </div>
 
@@ -328,8 +349,8 @@ Mohon informasi mengenai prosedur penyerahan barang dan pengecekan selanjutnya. 
                 onClick={() => setSelectedWeight(p.weight)}
                 className={`py-2 px-3 md:px-4 rounded-lg font-semibold text-xs md:text-sm transition-all flex-grow sm:flex-grow-0 ${
                   selectedWeight === p.weight
-                    ? "bg-gold text-black shadow-lg scale-105"
-                    : "bg-white dark:bg-slate-700 text-foreground border border-border hover:border-gold"
+                    ? "bg-[#D4AF37] text-black shadow-lg scale-105"
+                    : "bg-white dark:bg-slate-700 text-foreground border border-border hover:border-[#D4AF37]"
                 }`}
               >
                 {p.weight}g
@@ -338,10 +359,10 @@ Mohon informasi mengenai prosedur penyerahan barang dan pengecekan selanjutnya. 
           </div>
         </div>
 
-        {/* Estimate Box */}
-        <div className="bg-gradient-to-r from-gold/10 to-amber-500/10 border-2 border-gold rounded-xl p-4 md:p-6 text-center">
+        {/* Estimate Box (Total dari Admin) */}
+        <div className="bg-gradient-to-r from-[#D4AF37]/10 to-amber-500/10 border-2 border-[#D4AF37] rounded-xl p-4 md:p-6 text-center">
           <p className="text-xs md:text-sm text-muted-foreground font-medium">Estimasi yang Anda terima</p>
-          <p className="text-3xl md:text-5xl font-bold text-gold my-2">{formatCurrency(estimatedPrice)}</p>
+          <p className="text-3xl md:text-5xl font-bold text-[#D4AF37] my-2">{formatCurrency(totalEstimate)}</p>
           <p className="text-xs text-muted-foreground">untuk {selectedWeight}g emas Antam</p>
         </div>
 
@@ -352,14 +373,14 @@ Mohon informasi mengenai prosedur penyerahan barang dan pengecekan selanjutnya. 
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             placeholder="Nama Lengkap"
-            className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground text-sm focus:ring-2 focus:ring-gold outline-none"
+            className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground text-sm focus:ring-2 focus:ring-[#D4AF37] outline-none"
           />
           <input
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="Nomor WhatsApp"
-            className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground text-sm focus:ring-2 focus:ring-gold outline-none"
+            className="w-full px-4 py-3 border border-border rounded-lg bg-background text-foreground text-sm focus:ring-2 focus:ring-[#D4AF37] outline-none"
           />
         </div>
 

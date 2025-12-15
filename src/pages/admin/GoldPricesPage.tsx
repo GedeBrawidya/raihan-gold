@@ -14,8 +14,7 @@ import {
   GOLD_WEIGHT_OPTIONS,
 } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/formatting";
-import { Save, Loader2, Plus, Trash2, Edit2, X } from "lucide-react";
+import { Save, Loader2, Plus, Trash2, Edit2, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,9 +34,14 @@ export const GoldPricesPage: React.FC = () => {
   const [categories, setCategories] = useState<GoldCategory[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  
+  // State loading terpisah (agar tombol Jual & Buyback tidak loading barengan)
+  const [isSavingSell, setIsSavingSell] = useState(false);
+  const [isSavingBuyback, setIsSavingBuyback] = useState(false);
+
   const [sellPrices, setSellPrices] = useState<GoldWeightPrice[]>([]);
   const [buybackPrices, setBuybackPrices] = useState<GoldWeightPrice[]>([]);
+  
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<GoldCategory | null>(null);
   const [categoryName, setCategoryName] = useState("");
@@ -57,8 +61,11 @@ export const GoldPricesPage: React.FC = () => {
       setLoading(true);
       const data = await getGoldCategories(supabase);
       setCategories(data);
+      // Logic pilih otomatis kategori pertama jika belum ada yang dipilih
       if (data.length > 0 && !selectedCategoryId) {
         setSelectedCategoryId(data[0].id);
+      } else if (data.length === 0) {
+        setSelectedCategoryId(null);
       }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -83,8 +90,12 @@ export const GoldPricesPage: React.FC = () => {
 
   const handleSavePrices = async (type: "sell" | "buyback") => {
     if (!selectedCategoryId) return;
+    
+    // Set loading spesifik
+    if (type === "sell") setIsSavingSell(true);
+    else setIsSavingBuyback(true);
+
     try {
-      setSaving(true);
       const prices = type === "sell" ? sellPrices : buybackPrices;
       const rows = GOLD_WEIGHT_OPTIONS.map((weight) => {
         const existing = prices.find((p) => p.weight === weight);
@@ -105,7 +116,9 @@ export const GoldPricesPage: React.FC = () => {
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
-      setSaving(false);
+      // Reset loading spesifik
+      if (type === "sell") setIsSavingSell(false);
+      else setIsSavingBuyback(false);
     }
   };
 
@@ -137,7 +150,7 @@ export const GoldPricesPage: React.FC = () => {
       setCategoryDialogOpen(false);
       setCategoryName("");
       await loadCategories();
-      setSelectedCategoryId(newCat.id);
+      setSelectedCategoryId(newCat.id); // Otomatis pilih kategori baru
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -163,9 +176,6 @@ export const GoldPricesPage: React.FC = () => {
       await deleteGoldCategory(supabase, id);
       toast({ title: "Sukses", description: "Kategori berhasil dihapus" });
       await loadCategories();
-      if (selectedCategoryId === id) {
-        setSelectedCategoryId(categories.find((c) => c.id !== id)?.id || null);
-      }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -175,6 +185,8 @@ export const GoldPricesPage: React.FC = () => {
     if (!value) return "";
     return new Intl.NumberFormat("id-ID").format(value);
   };
+
+  const currentCategory = categories.find(c => c.id === selectedCategoryId);
 
   if (loading) {
     return (
@@ -186,68 +198,96 @@ export const GoldPricesPage: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 p-6 lg:p-10">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Kelola Harga Emas</h1>
           <p className="text-muted-foreground">Kelola kategori dan harga jual/buyback per gramasi</p>
         </div>
         <Button onClick={() => { setEditingCategory(null); setCategoryName(""); setCategoryDialogOpen(true); }}>
           <Plus className="w-4 h-4 mr-2" />
-          Tambah Kategori
+          Tambah Kategori Baru
         </Button>
       </div>
 
-      {/* Category Selector */}
-      <div className="bg-card border border-border rounded-xl p-6">
-        <Label className="text-lg font-semibold mb-4 block">Pilih Kategori</Label>
-        <div className="flex flex-wrap gap-2">
-          {categories.map((cat) => (
-            <div key={cat.id} className="flex items-center gap-2">
+      {/* DROPDOWN UTAMA: Pilih kategori untuk diedit */}
+      <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+        <Label className="text-lg font-semibold mb-4 block">Pilih Kategori untuk Diedit</Label>
+        
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+          <div className="relative w-full md:max-w-md">
+            {/* Ini tetap dropdown agar user mudah memilih yg sudah ada */}
+            <select
+              value={selectedCategoryId || ""}
+              onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
+              className="flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none"
+            >
+              {categories.length === 0 && <option value="">Belum ada kategori</option>}
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          </div>
+
+          {selectedCategoryId && currentCategory && (
+            <div className="flex items-center gap-2 w-full md:w-auto">
               <Button
-                variant={selectedCategoryId === cat.id ? "default" : "outline"}
-                onClick={() => setSelectedCategoryId(cat.id)}
-                className={selectedCategoryId === cat.id ? "bg-gold text-black" : ""}
+                variant="outline"
+                onClick={() => { 
+                  setEditingCategory(currentCategory); 
+                  setCategoryName(currentCategory.name); 
+                  setCategoryDialogOpen(true); 
+                }}
+                className="flex-1 md:flex-none"
               >
-                {cat.name}
+                <Edit2 className="w-4 h-4 mr-2" />
+                Ubah Nama
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => { setEditingCategory(cat); setCategoryName(cat.name); setCategoryDialogOpen(true); }}
+              <Button 
+                variant="destructive" 
+                onClick={() => handleDeleteCategory(selectedCategoryId)}
+                className="flex-1 md:flex-none"
               >
-                <Edit2 className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => handleDeleteCategory(cat.id)}>
-                <Trash2 className="w-4 h-4 text-destructive" />
+                <Trash2 className="w-4 h-4 mr-2" />
+                Hapus
               </Button>
             </div>
-          ))}
+          )}
         </div>
       </div>
 
       {selectedCategoryId && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Sell Prices */}
+          
+          {/* HARGA JUAL */}
           <div className="bg-card border border-border rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">Harga Jual</h2>
-              <Button onClick={() => handleSavePrices("sell")} disabled={saving} size="sm">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <Button 
+                onClick={() => handleSavePrices("sell")} 
+                disabled={isSavingSell} 
+                size="sm"
+              >
+                {isSavingSell ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               </Button>
             </div>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
               {GOLD_WEIGHT_OPTIONS.map((weight) => {
                 const price = sellPrices.find((p) => p.weight === weight)?.price || 0;
                 return (
                   <div key={weight} className="flex items-center gap-3">
-                    <Label className="w-20">{weight}g</Label>
+                    <Label className="w-20 font-medium">{weight}g</Label>
                     <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">Rp</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Rp</span>
                       <Input
                         type="text"
                         value={formatInputValue(price)}
                         onChange={(e) => handlePriceChange(weight, e.target.value, "sell")}
-                        className="pl-10"
+                        className="pl-10 text-right font-mono"
                       />
                     </div>
                   </div>
@@ -256,27 +296,31 @@ export const GoldPricesPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Buyback Prices */}
+          {/* HARGA BUYBACK */}
           <div className="bg-card border border-border rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">Harga Buyback</h2>
-              <Button onClick={() => handleSavePrices("buyback")} disabled={saving} size="sm">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <Button 
+                onClick={() => handleSavePrices("buyback")} 
+                disabled={isSavingBuyback} 
+                size="sm"
+              >
+                {isSavingBuyback ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               </Button>
             </div>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
               {GOLD_WEIGHT_OPTIONS.map((weight) => {
                 const price = buybackPrices.find((p) => p.weight === weight)?.price || 0;
                 return (
                   <div key={weight} className="flex items-center gap-3">
-                    <Label className="w-20">{weight}g</Label>
+                    <Label className="w-20 font-medium">{weight}g</Label>
                     <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">Rp</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Rp</span>
                       <Input
                         type="text"
                         value={formatInputValue(price)}
                         onChange={(e) => handlePriceChange(weight, e.target.value, "buyback")}
-                        className="pl-10"
+                        className="pl-10 text-right font-mono"
                       />
                     </div>
                   </div>
@@ -287,19 +331,21 @@ export const GoldPricesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Category Dialog */}
+      {/* MODAL INPUT: Kembali jadi Input Text biasa */}
       <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingCategory ? "Edit Kategori" : "Tambah Kategori"}</DialogTitle>
-            <DialogDescription>Masukkan nama kategori (contoh: tahun emas)</DialogDescription>
+            <DialogDescription>Masukkan nama kategori baru (Bebas, contoh: 2025)</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Label>Nama Kategori</Label>
+            {/* KEMBALI MENGGUNAKAN INPUT TEXT BIASA */}
             <Input
               value={categoryName}
               onChange={(e) => setCategoryName(e.target.value)}
-              placeholder="Contoh: 2024"
+              placeholder="Contoh: 2025 "
+              autoFocus
             />
           </div>
           <DialogFooter>

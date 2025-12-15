@@ -8,10 +8,13 @@ import {
   uploadProductImage,
   getGoldCategories,
   getSellPricesByCategory,
+  GoldCategory,
+  GoldWeightPrice,
+  GOLD_WEIGHT_OPTIONS,
 } from "@/lib/supabase";
 import { formatCurrency } from "@/lib/formatting";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit2, Trash2, X, Package, RefreshCw } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Package, RefreshCw, Loader2, Filter } from "lucide-react";
 
 interface Product {
   id: string;
@@ -21,6 +24,7 @@ interface Product {
   price: number;
   image_url: string;
   is_active: boolean;
+  category_id?: number;
   created_at: string;
 }
 
@@ -29,11 +33,20 @@ export const ProductsPage: React.FC = () => {
   const { toast } = useToast();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<GoldCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // State untuk Filter Kategori (Baru)
+  const [filterCategoryId, setFilterCategoryId] = useState<number | "all">("all");
+
+  // Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [priceMap, setPriceMap] = useState<Map<number, number>>(new Map());
+
+  // Price Calculation State
+  const [currentCategoryPrices, setCurrentCategoryPrices] = useState<GoldWeightPrice[]>([]);
+  const [isFetchingPrices, setIsFetchingPrices] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -42,33 +55,58 @@ export const ProductsPage: React.FC = () => {
     price: "",
     image_url: "",
     is_active: true,
+    category_id: "",
   });
 
-  // Load products and base gold price
   useEffect(() => {
-    loadData();
+    loadInitialData();
   }, []);
 
-  const loadData = async () => {
+  // Update harga otomatis saat form kategori berubah
+  useEffect(() => {
+    if (formData.category_id) {
+      fetchPricesForCategory(parseInt(formData.category_id));
+    } else {
+      setCurrentCategoryPrices([]);
+    }
+  }, [formData.category_id]);
+
+  // Update harga otomatis saat berat berubah
+  useEffect(() => {
+    const weightNum = parseFloat(formData.weight);
+    if (weightNum && currentCategoryPrices.length > 0) {
+      const foundPrice = currentCategoryPrices.find((p) => p.weight === weightNum);
+      if (foundPrice) {
+        setFormData((prev) => ({ ...prev, price: foundPrice.price.toString() }));
+      }
+    }
+  }, [formData.weight, currentCategoryPrices]);
+
+  const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [productsData, categories] = await Promise.all([
+      const [productsData, categoriesData] = await Promise.all([
         getProducts(supabase),
         getGoldCategories(supabase),
       ]);
       setProducts(productsData || []);
-      
-      // Get prices from latest category
-      if (categories.length > 0) {
-        const latestCategory = categories[0];
-        const sellPrices = await getSellPricesByCategory(supabase, latestCategory.id);
-        const priceMapData = new Map(sellPrices.map((p) => [p.weight, p.price]));
-        setPriceMap(priceMapData);
-      }
+      setCategories(categoriesData || []);
     } catch (err: any) {
       toast({ title: "Error", description: err.message });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPricesForCategory = async (categoryId: number) => {
+    try {
+      setIsFetchingPrices(true);
+      const prices = await getSellPricesByCategory(supabase, categoryId);
+      setCurrentCategoryPrices(prices);
+    } catch (error) {
+      console.error("Failed to fetch prices", error);
+    } finally {
+      setIsFetchingPrices(false);
     }
   };
 
@@ -80,8 +118,10 @@ export const ProductsPage: React.FC = () => {
       price: "",
       image_url: "",
       is_active: true,
+      category_id: "",
     });
     setEditingId(null);
+    setCurrentCategoryPrices([]);
   };
 
   const startEdit = (product: Product) => {
@@ -93,23 +133,9 @@ export const ProductsPage: React.FC = () => {
       price: product.price.toString(),
       image_url: product.image_url,
       is_active: product.is_active,
+      category_id: product.category_id ? product.category_id.toString() : "",
     });
     setModalOpen(true);
-  };
-
-  const handleWeightChange = (weight: string) => {
-    setFormData({ ...formData, weight });
-    
-    // Auto-calculate price when adding/editing
-    if (weight && priceMap.size > 0) {
-      const weightNum = parseFloat(weight);
-      if (!isNaN(weightNum) && weightNum > 0) {
-        const pricePerGram = priceMap.get(weightNum);
-        if (pricePerGram) {
-          setFormData(prev => ({ ...prev, price: pricePerGram.toString() }));
-        }
-      }
-    }
   };
 
   const handleImageUpload = async (file: File) => {
@@ -128,16 +154,22 @@ export const ProductsPage: React.FC = () => {
   const handleSave = async () => {
     try {
       const weight = parseFloat(formData.weight);
-      // Simpan harga statis ke DB sebagai backup/history
       const price = parseFloat(formData.price);
+      const categoryId = formData.category_id ? parseInt(formData.category_id) : null;
 
       if (!formData.name.trim()) {
-        toast({ title: "Error", description: "Product name is required" });
+        toast({ title: "Error", description: "Nama produk wajib diisi" });
+        return;
+      }
+      
+      // Validasi tambahan: Wajib pilih kategori agar data rapi
+      if (!categoryId) {
+        toast({ title: "Error", description: "Pilih kategori harga terlebih dahulu" });
         return;
       }
 
       if (isNaN(weight) || isNaN(price)) {
-        toast({ title: "Error", description: "Weight and price must be numbers" });
+        toast({ title: "Error", description: "Berat dan Harga harus valid" });
         return;
       }
 
@@ -148,53 +180,60 @@ export const ProductsPage: React.FC = () => {
         price,
         image_url: formData.image_url,
         is_active: formData.is_active,
+        category_id: categoryId,
       };
 
       if (editingId) {
         await updateProduct(supabase, editingId, payload);
-        toast({ title: "Success", description: "Product updated" });
+        toast({ title: "Success", description: "Produk berhasil diupdate" });
       } else {
         await createProduct(supabase, payload);
-        toast({ title: "Success", description: "Product created" });
+        toast({ title: "Success", description: "Produk berhasil dibuat" });
       }
 
       setModalOpen(false);
       resetForm();
-      await loadData(); // Reload all data
+      await loadInitialData();
     } catch (err: any) {
       toast({ title: "Error", description: err.message });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this product?")) return;
-
+    if (!confirm("Yakin ingin menghapus produk ini?")) return;
     try {
       await deleteProduct(supabase, id);
-      toast({ title: "Success", description: "Product deleted" });
-      await loadData();
+      toast({ title: "Success", description: "Produk dihapus" });
+      await loadInitialData();
     } catch (err: any) {
       toast({ title: "Error", description: err.message });
     }
   };
 
+  // --- LOGIC FILTERING ---
+  const filteredProducts = products.filter((product) => {
+    if (filterCategoryId === "all") return true;
+    return product.category_id === filterCategoryId;
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-slate-600 dark:text-slate-400">Loading...</div>
+        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header & Actions */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
             Manajemen Produk
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
-            Kelola katalog produk emas Anda. Harga otomatis menyesuaikan Harga Dasar.
+            Kelola katalog produk dan sinkronisasi harga.
           </p>
         </div>
         <button
@@ -209,29 +248,48 @@ export const ProductsPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Info Bar */}
-      {priceMap.size > 0 && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center gap-3 text-sm">
-          <RefreshCw className="w-4 h-4 text-blue-500" />
-          <span className="text-slate-700 dark:text-slate-300">
-            Harga produk menggunakan harga dari kategori terbaru. 
-            Kelola harga di halaman <strong>Gold Prices</strong>.
-          </span>
+      {/* --- FILTER BAR SECTION --- */}
+      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-x-auto">
+        <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-slate-500 text-sm font-semibold pr-2 border-r border-slate-200 dark:border-slate-600">
+                <Filter size={16} />
+                <span>Filter:</span>
+            </div>
+            <div className="flex gap-2">
+                <button
+                    onClick={() => setFilterCategoryId("all")}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                        filterCategoryId === "all"
+                            ? "bg-[#D4AF37] text-black shadow-sm"
+                            : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+                    }`}
+                >
+                    Semua
+                </button>
+                {categories.map((cat) => (
+                    <button
+                        key={cat.id}
+                        onClick={() => setFilterCategoryId(cat.id)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                            filterCategoryId === cat.id
+                                ? "bg-[#D4AF37] text-black shadow-sm"
+                                : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+                        }`}
+                    >
+                        {cat.name}
+                    </button>
+                ))}
+            </div>
         </div>
-      )}
+      </div>
 
-      {/* Products Grid */}
+      {/* Products Grid (Menampilkan filteredProducts) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.map((product) => {
-           // 🔥 ADMIN JUGA MENAMPILKAN HARGA LIVE 🔥
-           const currentPrice = priceMap.get(product.weight) || product.price;
-
-           return (
+        {filteredProducts.map((product) => (
             <div
               key={product.id}
               className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-lg transition-shadow"
             >
-              {/* Image */}
               <div className="h-40 bg-slate-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden relative">
                 {product.image_url ? (
                   <img
@@ -244,28 +302,33 @@ export const ProductsPage: React.FC = () => {
                     No Image
                   </div>
                 )}
-                {/* Overlay Berat */}
+                {/* Badge Berat */}
                 <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded font-bold">
                   {product.weight}g
                 </div>
+                {/* Badge Kategori (Opsional: Menampilkan nama kategori di kartu) */}
+                {product.category_id && (
+                    <div className="absolute top-2 left-2 bg-[#D4AF37]/90 text-black text-[10px] uppercase font-bold px-2 py-1 rounded">
+                        {categories.find(c => c.id === product.category_id)?.name || "N/A"}
+                    </div>
+                )}
               </div>
 
-              {/* Content */}
               <div className="p-4 space-y-3">
                 <div>
                   <h3 className="font-semibold text-slate-900 dark:text-white truncate">
                     {product.name}
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-1">
-                    {product.description}
+                    {product.description || "-"}
                   </p>
                 </div>
 
                 <div className="flex justify-between items-end border-t border-slate-100 dark:border-slate-700 pt-3">
                   <div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">Live Price</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">Harga Jual</p>
                     <p className="font-bold text-[#D4AF37] text-lg">
-                      {formatCurrency(currentPrice)}
+                      {formatCurrency(product.price)}
                     </p>
                   </div>
                   <div className={`text-xs px-2 py-1 rounded-full font-medium ${
@@ -277,14 +340,13 @@ export const ProductsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Actions */}
                 <div className="flex gap-2 pt-2">
                   <button
                     onClick={() => startEdit(product)}
                     className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/30 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors text-xs font-medium border border-slate-200 dark:border-slate-600"
                   >
                     <Edit2 size={14} />
-                    Edit Detail
+                    Edit
                   </button>
                   <button
                     onClick={() => handleDelete(product.id)}
@@ -295,24 +357,30 @@ export const ProductsPage: React.FC = () => {
                 </div>
               </div>
             </div>
-          );
-        })}
+          ))}
       </div>
 
-      {products.length === 0 && (
-        <div className="text-center py-12">
+      {filteredProducts.length === 0 && (
+        <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
           <Package size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-          <p className="text-slate-600 dark:text-slate-400">Belum ada produk</p>
+          <p className="text-slate-600 dark:text-slate-400">
+             {filterCategoryId === "all" ? "Belum ada produk" : "Tidak ada produk di kategori ini"}
+          </p>
+          {filterCategoryId !== "all" && (
+             <button onClick={() => setFilterCategoryId("all")} className="mt-2 text-[#D4AF37] text-sm hover:underline">
+                 Lihat semua kategori
+             </button>
+          )}
         </div>
       )}
 
-      {/* Modal */}
+      {/* Form Modal (Sama seperti sebelumnya) */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <div className="sticky top-0 bg-white dark:bg-slate-800 p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between z-10">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                {editingId ? "Edit Product" : "Tambah Produk"}
+                {editingId ? "Edit Produk" : "Tambah Produk"}
               </h2>
               <button
                 onClick={() => {
@@ -326,6 +394,7 @@ export const ProductsPage: React.FC = () => {
             </div>
 
             <div className="p-6 space-y-5">
+              
               {/* Product Name */}
               <div>
                 <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
@@ -336,62 +405,77 @@ export const ProductsPage: React.FC = () => {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Contoh: Emas Antam 5g Certieye"
+                  placeholder="Contoh: Emas Antam 5g"
                 />
               </div>
 
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                  Deskripsi
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  rows={3}
-                  placeholder="Keterangan produk, edisi, tahun, dll..."
-                />
-              </div>
-
-              {/* Weight & Price */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Kategori & Berat */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-700/30 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
                 <div>
                   <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                    Berat (gram) *
+                    Sumber Kategori Harga *
                   </label>
-                  <input
-                    type="number"
-                    value={formData.weight}
-                    onChange={(e) => handleWeightChange(e.target.value)}
+                  <select
+                    value={formData.category_id}
+                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value, weight: "" })}
                     className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0"
-                    step="0.01"
-                  />
-                  {priceMap.get(parseFloat(formData.weight) || 0) && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Harga untuk {formData.weight}g: {formatCurrency(priceMap.get(parseFloat(formData.weight) || 0) || 0)}
-                    </p>
-                  )}
+                  >
+                    <option value="">-- Pilih Kategori --</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+
                 <div>
                   <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                    Harga (IDR) *
+                    Berat Emas (Gram) *
+                  </label>
+                  <select
+                    value={formData.weight}
+                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                    disabled={!formData.category_id || isFetchingPrices}
+                    className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  >
+                    <option value="">-- Pilih Berat --</option>
+                    {GOLD_WEIGHT_OPTIONS.map((weight) => (
+                      <option key={weight} value={weight}>
+                        {weight} gram
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Price & Description */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                    Harga Jual (IDR) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pl-10"
+                    />
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">Rp</span>
+                  </div>
+                </div>
+
+                 <div>
+                  <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                    Deskripsi
                   </label>
                   <input
-                    type="number"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    type="text"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0"
                   />
-                  {formData.weight && priceMap.get(parseFloat(formData.weight) || 0) && (
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
-                      <RefreshCw size={10} /> Auto-calculated
-                    </p>
-                  )}
                 </div>
               </div>
 
@@ -425,9 +509,8 @@ export const ProductsPage: React.FC = () => {
                         if (file) handleImageUpload(file);
                       }}
                       disabled={uploading}
-                      className="block w-full text-sm text-slate-600 dark:text-slate-400 file:mr-4 file:px-4 file:py-2 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#D4AF37] file:text-black hover:file:bg-[#B8860B] cursor-pointer"
+                      className="block w-full text-sm file:mr-4 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-[#D4AF37] file:text-black hover:file:bg-[#B8860B]"
                     />
-                    <p className="text-xs text-slate-500 mt-2">Format: JPG, PNG, WEBP. Max 2MB.</p>
                   </div>
                 </div>
               </div>
@@ -441,35 +524,28 @@ export const ProductsPage: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                   className="w-5 h-5 rounded border-slate-300 text-[#D4AF37] focus:ring-[#D4AF37]"
                 />
-                <div>
-                  <label
-                    htmlFor="is_active"
-                    className="text-sm font-bold text-slate-900 dark:text-white cursor-pointer block"
-                  >
-                    Status Produk Aktif
-                  </label>
-                  <p className="text-xs text-slate-500">Jika dimatikan, produk tidak akan muncul di katalog website.</p>
-                </div>
+                <label htmlFor="is_active" className="text-sm font-bold text-slate-900 dark:text-white cursor-pointer">
+                  Status Produk Aktif
+                </label>
               </div>
             </div>
 
-            {/* Footer */}
             <div className="sticky bottom-0 bg-white dark:bg-slate-800 p-6 border-t border-slate-200 dark:border-slate-700 flex gap-3 justify-end rounded-b-lg">
               <button
                 onClick={() => {
                   setModalOpen(false);
                   resetForm();
                 }}
-                className="px-5 py-2.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors font-medium"
+                className="px-5 py-2.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white rounded-lg"
               >
                 Batal
               </button>
               <button
                 onClick={handleSave}
-                disabled={uploading}
-                className="px-5 py-2.5 bg-[#D4AF37] text-black rounded-lg hover:bg-[#B8860B] transition-colors font-bold disabled:opacity-50 shadow-md"
+                disabled={uploading || isFetchingPrices}
+                className="px-5 py-2.5 bg-[#D4AF37] text-black rounded-lg hover:bg-[#B8860B] font-bold"
               >
-                {uploading ? "Mengupload..." : editingId ? "Simpan Perubahan" : "Buat Produk"}
+                Simpan
               </button>
             </div>
           </div>

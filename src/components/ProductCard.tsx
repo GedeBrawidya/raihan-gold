@@ -5,11 +5,20 @@ import { formatCurrency } from "@/lib/formatting";
 import { generateWhatsAppLink } from "@/lib/whatsapp";
 
 interface ProductCardProps {
-  product: any;
+  product: {
+    id: string;
+    name: string;
+    description: string;
+    weight: number;
+    price: number;
+    image_url: string;
+    category_id?: number;
+  };
   index: number;
 }
 
 export const ProductCard = ({ product, index }: ProductCardProps) => {
+  // Pastikan harga adalah angka
   const displayPrice = Number(product.price || 0);
   const formattedPrice = formatCurrency(displayPrice);
 
@@ -27,16 +36,22 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
     >
       {/* Image */}
       <div className="relative aspect-[4/3] bg-muted overflow-hidden">
-        <img
-          src={product.image_url || product.imagePath}
-          alt={product.name}
-          className="
-            w-full h-full object-cover 
-            group-hover:scale-105 
-            transition-transform duration-700
-          "
-          loading="lazy"
-        />
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="
+              w-full h-full object-cover 
+              group-hover:scale-105 
+              transition-transform duration-700
+            "
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
+            No Image
+          </div>
+        )}
 
         {/* Badge Berat */}
         <div className="absolute top-2 left-2 z-20">
@@ -48,7 +63,7 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
             "
           >
             <Weight size={10} />
-            {product.weight} gram
+            {product.weight}g
           </span>
         </div>
       </div>
@@ -67,7 +82,7 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
           </h3>
 
           <p className="text-xs md:text-sm text-muted-foreground mb-3 line-clamp-2 leading-snug">
-            {product.description}
+            {product.description || "-"}
           </p>
         </div>
 
@@ -76,14 +91,14 @@ export const ProductCard = ({ product, index }: ProductCardProps) => {
         {/* Price */}
         <div className="mb-3">
           <p className="text-[10px] md:text-xs text-muted-foreground mb-1">
-            Estimasi Harga
+            Estimasi Harga Hari Ini
           </p>
           <p className="text-xl md:text-2xl font-bold text-[#D4AF37]">
             {formattedPrice}
           </p>
         </div>
 
-        {/* CTA BUTTON — FULL RESPONSIVE FIX */}
+        {/* CTA BUTTON */}
         <Button
           className="
             w-full bg-green-600 hover:bg-green-700 

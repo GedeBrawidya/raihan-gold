@@ -24,6 +24,20 @@ export function useSupabase() {
   return ctx;
 }
 
+// ============== TYPES ==============
+
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  weight: number;
+  price: number;
+  image_url: string;
+  is_active: boolean;
+  category_id?: number | null; // Added category_id
+  created_at: string;
+}
+
 // ============== BASE GOLD PRICE (Single Row) ==============
 // NOTE: These legacy helpers are kept for backward compatibility.
 // New UI uses category-based price tables below.
@@ -77,11 +91,12 @@ export const updateBaseGoldPrice = async (
 
 // ============== PRODUCTS CRUD ==============
 
-export const getProducts = async (supabase: SupabaseClient) => {
+export const getProducts = async (supabase: SupabaseClient): Promise<Product[]> => {
   try {
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, description, weight, price, image_url, is_active, created_at")
+      // UPDATED: Added category_id to select
+      .select("id, name, description, weight, price, image_url, is_active, created_at, category_id")
       .order("created_at", { ascending: false });
     if (error) throw error;
     return data || [];
@@ -91,11 +106,12 @@ export const getProducts = async (supabase: SupabaseClient) => {
   }
 };
 
-export const getProductById = async (supabase: SupabaseClient, id: string) => {
+export const getProductById = async (supabase: SupabaseClient, id: string): Promise<Product | null> => {
   try {
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, description, weight, price, image_url, is_active, created_at")
+      // UPDATED: Added category_id to select
+      .select("id, name, description, weight, price, image_url, is_active, created_at, category_id")
       .eq("id", id)
       .single();
     if (error) throw error;
@@ -115,6 +131,7 @@ export const createProduct = async (
     price: number;
     image_url: string;
     is_active: boolean;
+    category_id?: number | null; // UPDATED: Accept category_id
   }
 ) => {
   try {
@@ -140,6 +157,7 @@ export const updateProduct = async (
     price?: number;
     image_url?: string;
     is_active?: boolean;
+    category_id?: number | null; // UPDATED: Accept category_id
   }
 ) => {
   try {
