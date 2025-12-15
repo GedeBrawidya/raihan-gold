@@ -1,8 +1,3 @@
-Berdasarkan *tech stack* yang kamu gunakan (React, Vite, Tailwind CSS, Supabase) dan informasi proyek "Raihan Gold" yang kita bahas sebelumnya, berikut adalah draft **README.md** yang profesional dan modern.
-
-Draft ini menggunakan Bahasa Inggris karena standar industri untuk proyek Web Development (React/Vite) di GitHub biasanya menggunakan Bahasa Inggris agar terlihat lebih *globally competent* untuk portofolio kamu.
-
-Silakan copy dan simpan sebagai `README.md`:
 
 ---
 
