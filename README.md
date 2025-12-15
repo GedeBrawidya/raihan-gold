@@ -124,15 +124,3 @@ npm run dev
 * **University:** Universitas Amikom Yogyakarta
 
 ---
-
-##📄 LicenseDistributed under the MIT License. See `LICENSE` for more information.
-
-```
-
-### Tips Tambahan untuk README ini:
-
-1.  **Screenshots:** Bagian "Screenshots" masih kosong. Agar repository terlihat menarik, sangat disarankan kamu mengambil *screenshot* website "Raihan Gold" kamu, upload ke folder di repo (atau pakai issue tracker GitHub untuk hosting gambar), lalu ganti teks `*(Place screenshot here)*` dengan link gambarnya.
-2.  **Environment Variables:** Karena pakai Supabase, bagian `.env` sangat krusial agar orang lain (atau dosen/rekan tim) tahu cara menjalankan project-nya.
-3.  **Deploy Link:** Jika nanti kamu deploy (misal ke Vercel atau Netlify), tambahkan link "Live Demo" di bagian paling atas agar orang bisa langsung mencoba websitenya.
-
-```
