@@ -6,8 +6,8 @@ import {
   updateProduct,
   deleteProduct,
   uploadProductImage,
-  getBaseGoldPrice,
-  BaseGoldPrice,
+  getGoldCategories,
+  getSellPricesByCategory,
 } from "@/lib/supabase";
 import { formatCurrency } from "@/lib/formatting";
 import { useToast } from "@/hooks/use-toast";
@@ -33,7 +33,7 @@ export const ProductsPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [baseGoldPrice, setBaseGoldPrice] = useState<BaseGoldPrice | null>(null);
+  const [priceMap, setPriceMap] = useState<Map<number, number>>(new Map());
 
   const [formData, setFormData] = useState({
     name: "",
@@ -52,12 +52,19 @@ export const ProductsPage: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [productsData, basePriceData] = await Promise.all([
+      const [productsData, categories] = await Promise.all([
         getProducts(supabase),
-        getBaseGoldPrice(supabase)
+        getGoldCategories(supabase),
       ]);
       setProducts(productsData || []);
-      setBaseGoldPrice(basePriceData);
+      
+      // Get prices from latest category
+      if (categories.length > 0) {
+        const latestCategory = categories[0];
+        const sellPrices = await getSellPricesByCategory(supabase, latestCategory.id);
+        const priceMapData = new Map(sellPrices.map((p) => [p.weight, p.price]));
+        setPriceMap(priceMapData);
+      }
     } catch (err: any) {
       toast({ title: "Error", description: err.message });
     } finally {
@@ -94,11 +101,13 @@ export const ProductsPage: React.FC = () => {
     setFormData({ ...formData, weight });
     
     // Auto-calculate price when adding/editing
-    if (weight && baseGoldPrice) {
+    if (weight && priceMap.size > 0) {
       const weightNum = parseFloat(weight);
       if (!isNaN(weightNum) && weightNum > 0) {
-        const calculatedPrice = baseGoldPrice.sell_price_per_gram * weightNum;
-        setFormData(prev => ({ ...prev, price: calculatedPrice.toString() }));
+        const pricePerGram = priceMap.get(weightNum);
+        if (pricePerGram) {
+          setFormData(prev => ({ ...prev, price: pricePerGram.toString() }));
+        }
       }
     }
   };
@@ -201,12 +210,12 @@ export const ProductsPage: React.FC = () => {
       </div>
 
       {/* Info Bar */}
-      {baseGoldPrice && (
+      {priceMap.size > 0 && (
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center gap-3 text-sm">
           <RefreshCw className="w-4 h-4 text-blue-500" />
           <span className="text-slate-700 dark:text-slate-300">
-            Harga Dasar Emas Aktif: <strong>{formatCurrency(baseGoldPrice.sell_price_per_gram)}/gram</strong>. 
-            Semua produk di bawah ini dikalkulasi berdasarkan harga ini.
+            Harga produk menggunakan harga dari kategori terbaru. 
+            Kelola harga di halaman <strong>Gold Prices</strong>.
           </span>
         </div>
       )}
@@ -215,9 +224,7 @@ export const ProductsPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.map((product) => {
            // 🔥 ADMIN JUGA MENAMPILKAN HARGA LIVE 🔥
-           const currentPrice = baseGoldPrice 
-             ? baseGoldPrice.sell_price_per_gram * product.weight 
-             : product.price;
+           const currentPrice = priceMap.get(product.weight) || product.price;
 
            return (
             <div
@@ -363,9 +370,9 @@ export const ProductsPage: React.FC = () => {
                     placeholder="0"
                     step="0.01"
                   />
-                  {baseGoldPrice && (
+                  {priceMap.get(parseFloat(formData.weight) || 0) && (
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Basis: {formatCurrency(baseGoldPrice.sell_price_per_gram)}/g
+                      Harga untuk {formData.weight}g: {formatCurrency(priceMap.get(parseFloat(formData.weight) || 0) || 0)}
                     </p>
                   )}
                 </div>
@@ -380,7 +387,7 @@ export const ProductsPage: React.FC = () => {
                     className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="0"
                   />
-                  {formData.weight && baseGoldPrice && (
+                  {formData.weight && priceMap.get(parseFloat(formData.weight) || 0) && (
                     <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
                       <RefreshCw size={10} /> Auto-calculated
                     </p>

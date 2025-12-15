@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useSupabase } from "@/lib/supabase";
-import { getBaseGoldPrice, getProducts, BaseGoldPrice } from "@/lib/supabase";
+import { getGoldCategories, getSellPricesByCategory, getProducts } from "@/lib/supabase";
 import { DollarSign, Package } from "lucide-react";
 
 export const DashboardPage: React.FC = () => {
   const { supabase } = useSupabase();
   const [stats, setStats] = useState({
-    goldPrice: null as BaseGoldPrice | null,
+    sellPrice1g: null as number | null,
     products: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -17,10 +17,19 @@ export const DashboardPage: React.FC = () => {
 
   const loadStats = async () => {
     try {
-      const priceData = await getBaseGoldPrice(supabase);
+      const categories = await getGoldCategories(supabase);
+      let sellPrice1g = null;
+      
+      if (categories.length > 0) {
+        const latestCategory = categories[0];
+        const sellPrices = await getSellPricesByCategory(supabase, latestCategory.id);
+        const price1g = sellPrices.find((p) => p.weight === 1);
+        if (price1g) sellPrice1g = price1g.price;
+      }
+      
       const products = await getProducts(supabase);
       setStats({
-        goldPrice: priceData,
+        sellPrice1g,
         products: products.length,
       });
     } catch (err) {
@@ -67,10 +76,10 @@ export const DashboardPage: React.FC = () => {
                 Harga Jual (Per Gram)
               </p>
               <p className="text-3xl font-bold text-green-600">
-                {stats.goldPrice ? formatCurrency(stats.goldPrice.sell_price_per_gram) : "—"}
+                {stats.sellPrice1g ? formatCurrency(stats.sellPrice1g) : "—"}
               </p>
               <p className="text-xs text-slate-500 mt-2">
-                Updated: {stats.goldPrice ? new Date(stats.goldPrice.updated_at).toLocaleDateString("id-ID") : "—"}
+                Harga untuk 1g dari kategori terbaru
               </p>
             </div>
             <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">

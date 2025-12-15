@@ -2,32 +2,65 @@ import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, RefreshCw, Clock, MessageCircle } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/formatting";
 import { useState, useEffect } from "react";
-import { useSupabase, getBaseGoldPrice, BaseGoldPrice } from "@/lib/supabase";
+import { useSupabase, getGoldCategories, getSellPricesByCategory, getBuybackPricesByCategory, GoldCategory, GoldWeightPrice } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
-
-const WEIGHT_OPTIONS = [0.5, 1, 2, 3, 5, 10, 25, 50, 100];
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const GoldPriceTable = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [basePrice, setBasePrice] = useState<BaseGoldPrice | null>(null);
+  const [categories, setCategories] = useState<GoldCategory[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [sellPriceRows, setSellPriceRows] = useState<Array<{ weight: number; price: number }>>([]);
+  const [buybackPriceRows, setBuybackPriceRows] = useState<Array<{ weight: number; price: number }>>([]);
   const [activeTab, setActiveTab] = useState<"sell" | "buyback">("sell");
   const { supabase } = useSupabase();
   const { toast } = useToast();
 
-  const handleRefresh = async () => {
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  useEffect(() => {
+    if (selectedCategoryId) {
+      loadPrices();
+    }
+  }, [selectedCategoryId]);
+
+  const loadCategories = async () => {
+    try {
+      const data = await getGoldCategories(supabase);
+      setCategories(data);
+      if (data.length > 0 && !selectedCategoryId) {
+        setSelectedCategoryId(data[0].id);
+      }
+    } catch (err: any) {
+      console.error("Load categories error:", err);
+      toast({ title: "Error loading categories", description: err?.message || String(err) });
+    }
+  };
+
+  const loadPrices = async () => {
+    if (!selectedCategoryId) return;
     setIsRefreshing(true);
     try {
-      const baseData = await getBaseGoldPrice(supabase);
-      if (!baseData) throw new Error("Unable to fetch gold price data");
-      
-      setBasePrice(baseData);
-      
-      const rows = WEIGHT_OPTIONS.map((weight) => ({
-        weight,
-        price: baseData.sell_price_per_gram * weight,
-      }));
-      setSellPriceRows(rows);
+      const [sellData, buybackData] = await Promise.all([
+        getSellPricesByCategory(supabase, selectedCategoryId),
+        getBuybackPricesByCategory(supabase, selectedCategoryId),
+      ]);
+
+      setSellPriceRows(
+        sellData.map((p) => ({
+          weight: p.weight,
+          price: p.price,
+        }))
+      );
+
+      setBuybackPriceRows(
+        buybackData.map((p) => ({
+          weight: p.weight,
+          price: p.price,
+        }))
+      );
     } catch (err: any) {
       console.error("GoldPriceTable load error:", err);
       toast({ title: "Error loading prices", description: err?.message || String(err) });
@@ -36,9 +69,7 @@ export const GoldPriceTable = () => {
     }
   };
 
-  useEffect(() => {
-    handleRefresh();
-  }, []);
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
 
   return (
     <section id="harga-emas" className="py-12 md:py-24 bg-gradient-to-b from-background to-slate-50 dark:from-slate-950 dark:to-slate-900">
@@ -71,7 +102,31 @@ export const GoldPriceTable = () => {
           className="max-w-5xl mx-auto"
         >
           <div className="bg-card rounded-xl md:rounded-2xl shadow-xl border border-border overflow-hidden">
-            {/* Tab Navigation - Stacked on very small screens if needed, but flex usually works */}
+            {/* Category Selector */}
+            {categories.length > 0 && (
+              <div className="p-4 md:p-6 border-b border-border bg-muted/30">
+                <label className="block text-sm font-semibold text-foreground mb-2">
+                  Pilih Kategori
+                </label>
+                <Select
+                  value={selectedCategoryId?.toString() || ""}
+                  onValueChange={(val) => setSelectedCategoryId(parseInt(val))}
+                >
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Pilih kategori" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id.toString()}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Tab Navigation */}
             <div className="flex border-b border-border bg-muted/30">
               <button
                 onClick={() => setActiveTab("sell")}
@@ -105,10 +160,12 @@ export const GoldPriceTable = () => {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <h3 className="text-xl md:text-2xl font-bold text-foreground">Harga Jual</h3>
-                      <p className="text-xs md:text-sm text-muted-foreground mt-1">Per gram: {formatCurrency(basePrice?.sell_price_per_gram || 0)}</p>
+                      <p className="text-xs md:text-sm text-muted-foreground mt-1">
+                        Kategori: {selectedCategory?.name || "—"}
+                      </p>
                     </div>
                     <button
-                      onClick={handleRefresh}
+                      onClick={loadPrices}
                       disabled={isRefreshing}
                       className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gold/10 hover:bg-gold/20 text-gold rounded-lg transition-colors disabled:opacity-50 text-sm"
                     >
@@ -157,7 +214,12 @@ export const GoldPriceTable = () => {
               {/* Tab 2: Buyback Form */}
               {activeTab === "buyback" && (
                 <div className="space-y-6 animate-in fade-in duration-300">
-                  <AntamPriceListWithForm basePrice={basePrice} onRefresh={handleRefresh} isRefreshing={isRefreshing} />
+                  <AntamPriceListWithForm
+                    categoryId={selectedCategoryId}
+                    buybackPrices={buybackPriceRows}
+                    onRefresh={loadPrices}
+                    isRefreshing={isRefreshing}
+                  />
                 </div>
               )}
             </div>
@@ -166,7 +228,9 @@ export const GoldPriceTable = () => {
             <div className="bg-muted/30 px-4 md:px-8 py-3 md:py-4 border-t border-border flex flex-col md:flex-row items-start md:items-center justify-between text-xs text-muted-foreground gap-2">
               <div className="flex items-center gap-2">
                 <Clock className="w-3 h-3 md:w-4 md:h-4" />
-                <span>Update: <span className="font-semibold text-foreground">{basePrice?.updated_at ? formatDate(new Date(basePrice.updated_at)) : "—"}</span></span>
+                <span>
+                  Kategori: <span className="font-semibold text-foreground">{selectedCategory?.name || "—"}</span>
+                </span>
               </div>
               <span className="text-[10px] md:text-xs italic">* Harga dapat berubah sewaktu-waktu</span>
             </div>
@@ -178,30 +242,42 @@ export const GoldPriceTable = () => {
 };
 
 // Sub-Component for Buyback
-const AntamPriceListWithForm = ({ basePrice, onRefresh, isRefreshing }: any) => {
+const AntamPriceListWithForm = ({
+  categoryId,
+  buybackPrices,
+  onRefresh,
+  isRefreshing,
+}: {
+  categoryId: number | null;
+  buybackPrices: Array<{ weight: number; price: number }>;
+  onRefresh: () => void;
+  isRefreshing: boolean;
+}) => {
   const [selectedWeight, setSelectedWeight] = useState<number>(1);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const { toast } = useToast();
 
-  const estimatedPrice = basePrice ? basePrice.buyback_price_per_gram * selectedWeight : 0;
+  useEffect(() => {
+    if (buybackPrices.length > 0 && !buybackPrices.find((p) => p.weight === selectedWeight)) {
+      setSelectedWeight(buybackPrices[0].weight);
+    }
+  }, [buybackPrices]);
+
+  const selectedPrice = buybackPrices.find((p) => p.weight === selectedWeight);
+  const estimatedPrice = selectedPrice?.price || 0;
 
   const handleWhatsApp = () => {
-    // 1. Validasi Input
     if (!fullName.trim() || !phone.trim()) {
-      toast({ 
-        title: "Validasi Error", 
-        description: "Mohon lengkapi Nama dan Nomor HP/WA Anda.", 
-        variant: "destructive" 
+      toast({
+        title: "Validasi Error",
+        description: "Mohon lengkapi Nama dan Nomor HP/WA Anda.",
+        variant: "destructive",
       });
       return;
     }
 
-    // 2. Format Harga agar rapi (Contoh: "Rp 5.000.000")
     const formattedTotal = formatCurrency(estimatedPrice);
-
-    // 3. Susun Pesan Standar Bisnis (Professional Format)
-    // Menggunakan \n untuk baris baru dan *text* untuk bold di WhatsApp
     const text = `Halo Admin Raihan Gold, 👋
 
 Saya ingin mengajukan *Buyback* (Jual Kembali) emas dengan detail sebagai berikut:
@@ -213,25 +289,28 @@ Saya ingin mengajukan *Buyback* (Jual Kembali) emas dengan detail sebagai beriku
 
 Mohon informasi mengenai prosedur penyerahan barang dan pengecekan selanjutnya. Terima kasih.`;
 
-    // 4. Encode dan Buka WhatsApp
-    const whatsappNumber = "6285190044083"; // Pastikan nomor ini benar
+    const whatsappNumber = "6285190044083";
     const encodedMessage = encodeURIComponent(text);
     window.open(`https://wa.me/${whatsappNumber}?text=${encodedMessage}`, "_blank");
   };
 
-  if (!basePrice) return <div className="text-center py-8 text-muted-foreground">Loading prices...</div>;
+  if (!categoryId || buybackPrices.length === 0) {
+    return <div className="text-center py-8 text-muted-foreground">Loading prices...</div>;
+  }
 
   return (
     <div className="space-y-6 md:space-y-8">
-      {/* Price Summary Cards - Stack on mobile */}
+      {/* Price Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
         <div className="bg-gold/10 dark:bg-[#2b2417]/10 border border-gold/20 rounded-lg p-4 text-center sm:text-left">
-          <p className="text-xs md:text-sm text-[#D4AF37] font-semibold">Harga Jual /gram</p>
-          <p className="text-xl md:text-3xl font-bold text-[#D4AF37] mt-1">{formatCurrency(basePrice.sell_price_per_gram)}</p>
+          <p className="text-xs md:text-sm text-[#D4AF37] font-semibold">Harga Buyback /gram</p>
+          <p className="text-xl md:text-3xl font-bold text-[#D4AF37] mt-1">
+            {selectedPrice ? formatCurrency(selectedPrice.price / selectedWeight) : "—"}
+          </p>
         </div>
         <div className="bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-lg p-4 text-center sm:text-left">
-          <p className="text-xs md:text-sm text-slate-400 font-semibold">Harga Buyback /gram</p>
-          <p className="text-xl md:text-3xl font-bold text-slate-400 mt-1">{formatCurrency(basePrice.buyback_price_per_gram)}</p>
+          <p className="text-xs md:text-sm text-slate-400 font-semibold">Total Estimasi</p>
+          <p className="text-xl md:text-3xl font-bold text-slate-400 mt-1">{formatCurrency(estimatedPrice)}</p>
         </div>
       </div>
 
@@ -239,21 +318,21 @@ Mohon informasi mengenai prosedur penyerahan barang dan pengecekan selanjutnya. 
       <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50 border border-border rounded-xl p-4 md:p-6 space-y-6">
         <h3 className="text-lg md:text-2xl font-bold text-foreground">Hitung Estimasi Buyback</h3>
 
-        {/* Buttons - Use Flex Wrap for safety on small screens */}
+        {/* Weight Buttons */}
         <div>
           <label className="block text-sm font-semibold text-foreground mb-3">Pilih Berat (gram)</label>
           <div className="flex flex-wrap gap-2">
-            {WEIGHT_OPTIONS.map((weight) => (
+            {buybackPrices.map((p) => (
               <button
-                key={weight}
-                onClick={() => setSelectedWeight(weight)}
+                key={p.weight}
+                onClick={() => setSelectedWeight(p.weight)}
                 className={`py-2 px-3 md:px-4 rounded-lg font-semibold text-xs md:text-sm transition-all flex-grow sm:flex-grow-0 ${
-                  selectedWeight === weight
+                  selectedWeight === p.weight
                     ? "bg-gold text-black shadow-lg scale-105"
                     : "bg-white dark:bg-slate-700 text-foreground border border-border hover:border-gold"
                 }`}
               >
-                {weight}g
+                {p.weight}g
               </button>
             ))}
           </div>

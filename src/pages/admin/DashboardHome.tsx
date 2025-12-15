@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useSupabase, getBaseGoldPrice, BaseGoldPrice } from "@/lib/supabase";
+import { useSupabase, getGoldCategories, getSellPricesByCategory, getBuybackPricesByCategory } from "@/lib/supabase";
 import { formatCurrency } from "@/lib/formatting";
 import { DollarSign, Coins, Package } from "lucide-react";
 
@@ -27,8 +27,25 @@ export const DashboardHome: React.FC = () => {
     try {
       setLoading(true);
       
-      // Fetch gold prices
-      const basePrice = await getBaseGoldPrice(supabase);
+      // Fetch categories and get latest category prices
+      const categories = await getGoldCategories(supabase);
+      let sellPrice = null;
+      let buybackPrice = null;
+      
+      if (categories.length > 0) {
+        const latestCategory = categories[0];
+        const [sellPrices, buybackPrices] = await Promise.all([
+          getSellPricesByCategory(supabase, latestCategory.id),
+          getBuybackPricesByCategory(supabase, latestCategory.id),
+        ]);
+        
+        // Get price for 1g as reference
+        const sell1g = sellPrices.find((p) => p.weight === 1);
+        const buyback1g = buybackPrices.find((p) => p.weight === 1);
+        
+        if (sell1g) sellPrice = sell1g.price;
+        if (buyback1g) buybackPrice = buyback1g.price;
+      }
       
       // Fetch product count
       const { count: productCount } = await supabase
@@ -36,8 +53,8 @@ export const DashboardHome: React.FC = () => {
         .select("*", { count: "exact", head: true });
 
       setData({
-        sellPrice: basePrice?.sell_price_per_gram || null,
-        buybackPrice: basePrice?.buyback_price_per_gram || null,
+        sellPrice,
+        buybackPrice,
         productCount: productCount || 0,
       });
     } catch (err) {

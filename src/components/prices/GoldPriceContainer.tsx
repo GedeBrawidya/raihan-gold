@@ -1,47 +1,41 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSupabase, getDailyPrice, AntamDailyPrice } from "@/lib/supabase";
+import { useSupabase, getGoldCategories, GoldCategory, GOLD_WEIGHT_OPTIONS } from "@/lib/supabase";
 import { SellingPriceTable } from "./SellingPriceTable";
 import { BuybackCalculator } from "./BuybackCalculator";
 import { ShoppingBag, RefreshCw, Clock, TrendingUp } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type TabType = "sell" | "buyback";
 
 export const GoldPriceContainer = () => {
   const { supabase } = useSupabase();
   const [activeTab, setActiveTab] = useState<TabType>("sell");
-  const [priceData, setPriceData] = useState<AntamDailyPrice | null>(null);
+  const [categories, setCategories] = useState<GoldCategory[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadPrice = async () => {
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
     try {
       setLoading(true);
-      const price = await getDailyPrice(supabase);
-      if (price) {
-        setPriceData(price);
+      const data = await getGoldCategories(supabase);
+      setCategories(data);
+      if (data.length > 0) {
+        setSelectedCategoryId(data[0].id);
       }
     } catch (err) {
-      console.error("Load price error:", err);
+      console.error("Load categories error:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadPrice();
-  }, []);
-
-  // Memoize formatted time
-  const formattedUpdatedTime = useMemo(() => {
-    if (!priceData?.updated_at) return "—";
-    const date = new Date(priceData.updated_at);
-    return date.toLocaleString("id-ID", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }, [priceData?.updated_at]);
+  const selectedCategory = useMemo(() => {
+    return categories.find((c) => c.id === selectedCategoryId);
+  }, [categories, selectedCategoryId]);
 
   return (
     <section className="py-16 bg-gradient-to-b from-slate-900 to-slate-950">
@@ -62,6 +56,32 @@ export const GoldPriceContainer = () => {
             Harga diperbarui secara real-time mengikuti fluktuasi pasar.
           </p>
         </div>
+
+        {/* Category Selector */}
+        {!loading && categories.length > 0 && (
+          <div className="max-w-4xl mx-auto mb-6">
+            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 backdrop-blur">
+              <label className="block text-sm font-semibold text-white mb-2">
+                Pilih Kategori
+              </label>
+              <Select
+                value={selectedCategoryId?.toString() || ""}
+                onValueChange={(val) => setSelectedCategoryId(parseInt(val))}
+              >
+                <SelectTrigger className="bg-slate-700 text-white border-slate-600">
+                  <SelectValue placeholder="Pilih kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id.toString()}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="max-w-4xl mx-auto mb-8">
@@ -96,8 +116,12 @@ export const GoldPriceContainer = () => {
         {/* Tab Content */}
         <div className="max-w-4xl mx-auto bg-slate-800/30 border border-slate-700/50 rounded-xl p-6 md:p-8 shadow-xl backdrop-blur">
           <div className="animate-in fade-in duration-300">
-            {activeTab === "sell" && <SellingPriceTable />}
-            {activeTab === "buyback" && <BuybackCalculator />}
+            {selectedCategoryId && (
+              <>
+                {activeTab === "sell" && <SellingPriceTable categoryId={selectedCategoryId} />}
+                {activeTab === "buyback" && <BuybackCalculator categoryId={selectedCategoryId} />}
+              </>
+            )}
           </div>
         </div>
 
@@ -106,21 +130,11 @@ export const GoldPriceContainer = () => {
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4" />
             <span className="text-sm">
-              Terakhir diperbarui: <span className="text-gold font-semibold">
-                {formattedUpdatedTime}
+              Kategori: <span className="text-gold font-semibold">
+                {selectedCategory?.name || "—"}
               </span>
             </span>
           </div>
-          {!loading && (
-            <button
-              onClick={loadPrice}
-              disabled={loading}
-              className="p-1.5 hover:bg-slate-700/50 rounded-lg transition-colors disabled:opacity-50"
-              title="Refresh prices"
-            >
-              <RefreshCw className={`w-4 h-4 text-gold ${loading ? "animate-spin" : ""}`} />
-            </button>
-          )}
         </div>
       </div>
     </section>

@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSupabase, getDailyPrice, AntamDailyPrice } from "@/lib/supabase";
+import { useSupabase, getSellPricesByCategory, GoldWeightPrice } from "@/lib/supabase";
 import { TrendingUp, AlertCircle, RefreshCw } from "lucide-react";
-
-const WEIGHT_OPTIONS = [0.5, 1, 2, 3, 5, 10, 25, 50, 100];
 
 const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat("id-ID", {
@@ -17,28 +15,28 @@ interface PriceRow {
   sellingPrice: number;
 }
 
-export const SellingPriceTable = () => {
+interface SellingPriceTableProps {
+  categoryId: number;
+}
+
+export const SellingPriceTable = ({ categoryId }: SellingPriceTableProps) => {
   const { supabase } = useSupabase();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [priceData, setPriceData] = useState<AntamDailyPrice | null>(null);
+  const [priceData, setPriceData] = useState<GoldWeightPrice[]>([]);
   const [rows, setRows] = useState<PriceRow[]>([]);
 
   const loadPrice = async () => {
     try {
       setLoading(true);
       setError(null);
-      const price = await getDailyPrice(supabase);
-      if (price) {
-        setPriceData(price);
-        const generatedRows = WEIGHT_OPTIONS.map((weight) => ({
-          weight,
-          sellingPrice: price.sell_price_per_gram * weight,
-        }));
-        setRows(generatedRows);
-      } else {
-        setError("Harga tidak tersedia saat ini");
-      }
+      const prices = await getSellPricesByCategory(supabase, categoryId);
+      setPriceData(prices);
+      const generatedRows = prices.map((p) => ({
+        weight: p.weight,
+        sellingPrice: p.price,
+      }));
+      setRows(generatedRows);
     } catch (err: any) {
       console.error("Load price error:", err);
       setError(err?.message || "Gagal memuat harga");
@@ -48,13 +46,10 @@ export const SellingPriceTable = () => {
   };
 
   useEffect(() => {
-    loadPrice();
-  }, []);
-
-  // Memoize formatted price
-  const formattedPrice = useMemo(() => {
-    return formatCurrency(priceData?.sell_price_per_gram || 0);
-  }, [priceData?.sell_price_per_gram]);
+    if (categoryId) {
+      loadPrice();
+    }
+  }, [categoryId]);
 
   const SkeletonLoader = () => (
     <div className="space-y-4">
@@ -64,7 +59,7 @@ export const SellingPriceTable = () => {
     </div>
   );
 
-  if (error && !priceData) {
+  if (error && !priceData.length) {
     return (
       <div className="bg-red-900/20 border border-red-700/30 rounded-lg p-4 flex items-start gap-3">
         <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
@@ -98,9 +93,7 @@ export const SellingPriceTable = () => {
               Harga Jual Emas Hari Ini
             </h3>
             <p className="text-sm text-slate-400">
-              Harga per gram: <span className="text-gold font-bold">
-                {formattedPrice}
-              </span>
+              Harga bervariasi per gramasi
             </p>
           </div>
         </div>

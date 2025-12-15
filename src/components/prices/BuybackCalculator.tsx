@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSupabase, getDailyPrice, AntamDailyPrice } from "@/lib/supabase";
+import { useSupabase, getBuybackPricesByCategory, GoldWeightPrice, GOLD_WEIGHT_OPTIONS } from "@/lib/supabase";
 import { MessageCircle, RefreshCw, AlertCircle } from "lucide-react";
-
-const WEIGHT_OPTIONS = [0.5, 1, 2, 3, 5, 10, 25, 50, 100];
 
 const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat("id-ID", {
@@ -12,12 +10,16 @@ const formatCurrency = (value: number): string => {
   }).format(value);
 };
 
-export const BuybackCalculator = () => {
+interface BuybackCalculatorProps {
+  categoryId: number;
+}
+
+export const BuybackCalculator = ({ categoryId }: BuybackCalculatorProps) => {
   const { supabase } = useSupabase();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedWeight, setSelectedWeight] = useState<number>(1);
-  const [priceData, setPriceData] = useState<AntamDailyPrice | null>(null);
+  const [priceData, setPriceData] = useState<GoldWeightPrice[]>([]);
 
   const whatsappPhone = "628xxxx"; // Replace with actual WhatsApp number
 
@@ -25,11 +27,10 @@ export const BuybackCalculator = () => {
     try {
       setLoading(true);
       setError(null);
-      const price = await getDailyPrice(supabase);
-      if (price) {
-        setPriceData(price);
-      } else {
-        setError("Harga tidak tersedia");
+      const prices = await getBuybackPricesByCategory(supabase, categoryId);
+      setPriceData(prices);
+      if (prices.length > 0 && !prices.find((p) => p.weight === selectedWeight)) {
+        setSelectedWeight(prices[0].weight);
       }
     } catch (err: any) {
       console.error("Load price error:", err);
@@ -40,17 +41,17 @@ export const BuybackCalculator = () => {
   };
 
   useEffect(() => {
-    loadPrice();
-  }, []);
+    if (categoryId) {
+      loadPrice();
+    }
+  }, [categoryId]);
 
   // Memoize calculations
-  const estimatedPrice = useMemo(() => {
-    return (priceData?.buyback_price_per_gram || 0) * selectedWeight;
-  }, [priceData?.buyback_price_per_gram, selectedWeight]);
+  const selectedPrice = useMemo(() => {
+    return priceData.find((p) => p.weight === selectedWeight);
+  }, [priceData, selectedWeight]);
 
-  const formattedPrice = useMemo(() => {
-    return formatCurrency(priceData?.buyback_price_per_gram || 0);
-  }, [priceData?.buyback_price_per_gram]);
+  const estimatedPrice = selectedPrice?.price || 0;
 
   const handleWhatsApp = () => {
     const priceText = estimatedPrice.toLocaleString("id-ID");
@@ -68,7 +69,7 @@ export const BuybackCalculator = () => {
     </div>
   );
 
-  if (error && !priceData) {
+  if (error && !priceData.length) {
     return (
       <div className="bg-red-900/20 border border-red-700/30 rounded-lg p-4 flex items-start gap-3">
         <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
@@ -89,6 +90,8 @@ export const BuybackCalculator = () => {
     return <SkeletonLoader />;
   }
 
+  const availableWeights = priceData.map((p) => p.weight).filter((w) => GOLD_WEIGHT_OPTIONS.includes(w as any));
+
   return (
     <div className="space-y-6">
       {/* Header Info */}
@@ -102,9 +105,7 @@ export const BuybackCalculator = () => {
               Jual Emas Batangan Antam Anda
             </h3>
             <p className="text-sm text-slate-400">
-              Harga per gram: <span className="text-gold font-bold">
-                {formattedPrice}
-              </span>
+              Harga bervariasi per gramasi
             </p>
           </div>
         </div>
@@ -124,7 +125,7 @@ export const BuybackCalculator = () => {
           Pilih Berat Emas Antam
         </label>
         <div className="grid grid-cols-5 md:grid-cols-9 gap-2">
-          {WEIGHT_OPTIONS.map((weight) => (
+          {availableWeights.map((weight) => (
             <button
               key={weight}
               onClick={() => setSelectedWeight(weight)}

@@ -4,6 +4,9 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
+// Default list of weights we support throughout the UI.
+export const GOLD_WEIGHT_OPTIONS = [0.5, 1, 2, 3, 5, 10, 25, 50, 100] as const;
+
 type SupabaseContextValue = {
   supabase: SupabaseClient;
 };
@@ -22,6 +25,8 @@ export function useSupabase() {
 }
 
 // ============== BASE GOLD PRICE (Single Row) ==============
+// NOTE: These legacy helpers are kept for backward compatibility.
+// New UI uses category-based price tables below.
 
 export interface BaseGoldPrice {
   id: number;
@@ -228,4 +233,166 @@ export const updateDailyPrice = async (
     console.error("updateDailyPrice error:", err);
     throw err;
   }
+};
+
+// ============== CATEGORY-BASED GOLD PRICES ==============
+
+export interface GoldCategory {
+  id: number;
+  name: string;
+  created_at: string | null;
+}
+
+export interface GoldWeightPrice {
+  id?: number;
+  category_id: number;
+  weight: number;
+  price: number;
+  updated_at?: string | null;
+}
+
+export const getGoldCategories = async (supabase: SupabaseClient): Promise<GoldCategory[]> => {
+  const { data, error } = await supabase
+    .from("gold_categories")
+    .select("id, name, created_at")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+};
+
+export const createGoldCategory = async (supabase: SupabaseClient, name: string): Promise<GoldCategory> => {
+  const { data, error } = await supabase
+    .from("gold_categories")
+    .insert([{ name }])
+    .select("id, name, created_at")
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const updateGoldCategory = async (
+  supabase: SupabaseClient,
+  id: number,
+  payload: { name: string }
+): Promise<GoldCategory> => {
+  const { data, error } = await supabase
+    .from("gold_categories")
+    .update(payload)
+    .eq("id", id)
+    .select("id, name, created_at")
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const deleteGoldCategory = async (supabase: SupabaseClient, id: number) => {
+  const { error } = await supabase.from("gold_categories").delete().eq("id", id);
+  if (error) throw error;
+  return true;
+};
+
+export const getSellPricesByCategory = async (
+  supabase: SupabaseClient,
+  categoryId: number
+): Promise<GoldWeightPrice[]> => {
+  const { data, error } = await supabase
+    .from("gold_sell_prices")
+    .select("id, category_id, weight, price, updated_at")
+    .eq("category_id", categoryId)
+    .order("weight", { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+export const getBuybackPricesByCategory = async (
+  supabase: SupabaseClient,
+  categoryId: number
+): Promise<GoldWeightPrice[]> => {
+  const { data, error } = await supabase
+    .from("gold_buyback_prices")
+    .select("id, category_id, weight, price, updated_at")
+    .eq("category_id", categoryId)
+    .order("weight", { ascending: true });
+  if (error) throw error;
+  return data || [];
+};
+
+export const upsertSellPrices = async (
+  supabase: SupabaseClient,
+  categoryId: number,
+  rows: Array<{ weight: number; price: number }>
+): Promise<GoldWeightPrice[]> => {
+  // First, delete existing prices for this category
+  const { error: deleteError } = await supabase
+    .from("gold_sell_prices")
+    .delete()
+    .eq("category_id", categoryId);
+  
+  if (deleteError) {
+    console.error("Delete error:", deleteError);
+    throw deleteError;
+  }
+
+  // Then insert new prices
+  const payload = rows
+    .filter((row) => row.price > 0) // Only insert rows with price > 0
+    .map((row) => ({
+      category_id: categoryId,
+      weight: row.weight,
+      price: row.price,
+      updated_at: new Date().toISOString(),
+    }));
+
+  if (payload.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("gold_sell_prices")
+    .insert(payload)
+    .select("id, category_id, weight, price, updated_at")
+    .order("weight", { ascending: true });
+  
+  if (error) throw error;
+  return data || [];
+};
+
+export const upsertBuybackPrices = async (
+  supabase: SupabaseClient,
+  categoryId: number,
+  rows: Array<{ weight: number; price: number }>
+): Promise<GoldWeightPrice[]> => {
+  // First, delete existing prices for this category
+  const { error: deleteError } = await supabase
+    .from("gold_buyback_prices")
+    .delete()
+    .eq("category_id", categoryId);
+  
+  if (deleteError) {
+    console.error("Delete error:", deleteError);
+    throw deleteError;
+  }
+
+  // Then insert new prices
+  const payload = rows
+    .filter((row) => row.price > 0) // Only insert rows with price > 0
+    .map((row) => ({
+      category_id: categoryId,
+      weight: row.weight,
+      price: row.price,
+      updated_at: new Date().toISOString(),
+    }));
+
+  if (payload.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("gold_buyback_prices")
+    .insert(payload)
+    .select("id, category_id, weight, price, updated_at")
+    .order("weight", { ascending: true });
+  
+  if (error) throw error;
+  return data || [];
 };

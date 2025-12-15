@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { ProductCard } from "./ProductCard";
 import { useEffect, useState } from "react";
-import { useSupabase, getProducts, getBaseGoldPrice } from "@/lib/supabase";
+import { useSupabase, getProducts, getGoldCategories, getSellPricesByCategory } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
 const WEIGHT_OPTIONS = [0.5, 1, 2, 3, 5, 10, 25, 50, 100];
@@ -16,7 +16,7 @@ export const ProductCatalog = () => {
   const { toast } = useToast();
 
   const [products, setProducts] = useState<any[]>([]);
-  const [basePrice, setBasePrice] = useState<any>(null);
+  const [priceMap, setPriceMap] = useState<Map<number, number>>(new Map());
 
   const [selectedWeight, setSelectedWeight] = useState<number | null>(null);
   const [selectedEdition, setSelectedEdition] = useState<string | null>(null);
@@ -30,13 +30,20 @@ export const ProductCatalog = () => {
     try {
       setLoading(true);
 
-      const [rows, basePriceData] = await Promise.all([
+      const [rows, categories] = await Promise.all([
         getProducts(supabase),
-        getBaseGoldPrice(supabase),
+        getGoldCategories(supabase),
       ]);
 
       setProducts(rows ?? []);
-      setBasePrice(basePriceData ?? null);
+
+      // Get prices from latest category
+      if (categories.length > 0) {
+        const latestCategory = categories[0];
+        const sellPrices = await getSellPricesByCategory(supabase, latestCategory.id);
+        const priceMapData = new Map(sellPrices.map((p) => [p.weight, p.price]));
+        setPriceMap(priceMapData);
+      }
     } catch (err) {
       console.error("Error:", err);
       toast({
@@ -164,9 +171,7 @@ export const ProductCatalog = () => {
         ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols 1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
             {filteredProducts.map((product, index) => {
-              const livePrice = basePrice
-                ? basePrice.sell_price_per_gram * product.weight
-                : product.price;
+              const livePrice = priceMap.get(product.weight) || product.price;
 
               return (
                 <ProductCard

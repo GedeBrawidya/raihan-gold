@@ -1,99 +1,179 @@
 import React, { useState, useEffect } from "react";
 import { useSupabase } from "@/lib/supabase";
-import { getBaseGoldPrice, updateBaseGoldPrice, BaseGoldPrice } from "@/lib/supabase";
+import {
+  getGoldCategories,
+  createGoldCategory,
+  updateGoldCategory,
+  deleteGoldCategory,
+  getSellPricesByCategory,
+  getBuybackPricesByCategory,
+  upsertSellPrices,
+  upsertBuybackPrices,
+  GoldCategory,
+  GoldWeightPrice,
+  GOLD_WEIGHT_OPTIONS,
+} from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, formatDate } from "@/lib/formatting";
-import { Save, Loader2 } from "lucide-react";
+import { formatCurrency } from "@/lib/formatting";
+import { Save, Loader2, Plus, Trash2, Edit2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const GoldPricesPage: React.FC = () => {
   const { supabase } = useSupabase();
   const { toast } = useToast();
 
-  const [basePrice, setBasePrice] = useState<BaseGoldPrice | null>(null);
+  const [categories, setCategories] = useState<GoldCategory[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
-  // State form menyimpan string angka murni (contoh: "2850000")
-  const [editForm, setEditForm] = useState({
-    sell_price_per_gram: "",
-    buyback_price_per_gram: "",
-  });
+  const [sellPrices, setSellPrices] = useState<GoldWeightPrice[]>([]);
+  const [buybackPrices, setBuybackPrices] = useState<GoldWeightPrice[]>([]);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<GoldCategory | null>(null);
+  const [categoryName, setCategoryName] = useState("");
 
-  // Load base price
   useEffect(() => {
-    loadPrice();
+    loadCategories();
   }, []);
 
-  const loadPrice = async () => {
+  useEffect(() => {
+    if (selectedCategoryId) {
+      loadPrices();
+    }
+  }, [selectedCategoryId]);
+
+  const loadCategories = async () => {
     try {
       setLoading(true);
-      const data = await getBaseGoldPrice(supabase);
-      if (!data) throw new Error("No gold price data found");
-      
-      setBasePrice(data);
-      setEditForm({
-        sell_price_per_gram: data.sell_price_per_gram.toString(),
-        buyback_price_per_gram: data.buyback_price_per_gram.toString(),
-      });
+      const data = await getGoldCategories(supabase);
+      setCategories(data);
+      if (data.length > 0 && !selectedCategoryId) {
+        setSelectedCategoryId(data[0].id);
+      }
     } catch (err: any) {
-      toast({ title: "Error", description: err.message });
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  // --- HELPER FUNCTIONS BARU ---
-
-  // 1. Fungsi mengubah angka murni jadi format ribuan (untuk tampilan input)
-  // Contoh: "2850000" -> "2.850.000"
-  const formatInputValue = (value: string) => {
-    if (!value) return "";
-    // Hapus karakter non-digit dulu untuk jaga-jaga
-    const number = value.replace(/\D/g, "");
-    if (!number) return "";
-    return new Intl.NumberFormat("id-ID").format(parseInt(number));
+  const loadPrices = async () => {
+    if (!selectedCategoryId) return;
+    try {
+      const [sellData, buybackData] = await Promise.all([
+        getSellPricesByCategory(supabase, selectedCategoryId),
+        getBuybackPricesByCategory(supabase, selectedCategoryId),
+      ]);
+      setSellPrices(sellData);
+      setBuybackPrices(buybackData);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
-  // 2. Handler saat user mengetik
-  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
-    // Ambil value raw dari input (contoh: "2.850.000")
-    const rawValue = e.target.value;
-    
-    // Hapus semua titik/koma, sisakan angka saja (contoh: "2850000")
-    const cleanValue = rawValue.replace(/\D/g, "");
-
-    // Simpan ke state sebagai angka murni
-    setEditForm((prev) => ({
-      ...prev,
-      [field]: cleanValue,
-    }));
-  };
-
-  // -----------------------------
-
-  const handleSave = async () => {
+  const handleSavePrices = async (type: "sell" | "buyback") => {
+    if (!selectedCategoryId) return;
     try {
       setSaving(true);
-      const sellPrice = parseFloat(editForm.sell_price_per_gram);
-      const buybackPrice = parseFloat(editForm.buyback_price_per_gram);
-
-      if (isNaN(sellPrice) || isNaN(buybackPrice)) {
-        toast({ title: "Validasi Error", description: "Mohon masukkan angka yang valid", variant: "destructive" });
-        return;
-      }
-
-      await updateBaseGoldPrice(supabase, {
-        sell_price_per_gram: sellPrice,
-        buyback_price_per_gram: buybackPrice,
+      const prices = type === "sell" ? sellPrices : buybackPrices;
+      const rows = GOLD_WEIGHT_OPTIONS.map((weight) => {
+        const existing = prices.find((p) => p.weight === weight);
+        return {
+          weight,
+          price: existing?.price || 0,
+        };
       });
 
-      toast({ title: "Sukses", description: "Harga emas berhasil diperbarui" });
-      await loadPrice();
+      if (type === "sell") {
+        await upsertSellPrices(supabase, selectedCategoryId, rows);
+      } else {
+        await upsertBuybackPrices(supabase, selectedCategoryId, rows);
+      }
+
+      toast({ title: "Sukses", description: `Harga ${type === "sell" ? "jual" : "buyback"} berhasil disimpan` });
+      await loadPrices();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message });
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
+  };
+
+  const handlePriceChange = (weight: number, value: string, type: "sell" | "buyback") => {
+    const numValue = parseFloat(value.replace(/\D/g, "")) || 0;
+    const prices = type === "sell" ? sellPrices : buybackPrices;
+    const updated = [...prices];
+    const index = updated.findIndex((p) => p.weight === weight);
+    if (index >= 0) {
+      updated[index] = { ...updated[index], price: numValue };
+    } else {
+      updated.push({ category_id: selectedCategoryId!, weight, price: numValue });
+    }
+    if (type === "sell") {
+      setSellPrices(updated);
+    } else {
+      setBuybackPrices(updated);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!categoryName.trim()) {
+      toast({ title: "Error", description: "Nama kategori harus diisi", variant: "destructive" });
+      return;
+    }
+    try {
+      const newCat = await createGoldCategory(supabase, categoryName.trim());
+      toast({ title: "Sukses", description: "Kategori berhasil dibuat" });
+      setCategoryDialogOpen(false);
+      setCategoryName("");
+      await loadCategories();
+      setSelectedCategoryId(newCat.id);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleUpdateCategory = async () => {
+    if (!editingCategory || !categoryName.trim()) return;
+    try {
+      await updateGoldCategory(supabase, editingCategory.id, { name: categoryName.trim() });
+      toast({ title: "Sukses", description: "Kategori berhasil diupdate" });
+      setCategoryDialogOpen(false);
+      setEditingCategory(null);
+      setCategoryName("");
+      await loadCategories();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteCategory = async (id: number) => {
+    if (!confirm("Yakin hapus kategori ini? Semua harga terkait akan ikut terhapus.")) return;
+    try {
+      await deleteGoldCategory(supabase, id);
+      toast({ title: "Sukses", description: "Kategori berhasil dihapus" });
+      await loadCategories();
+      if (selectedCategoryId === id) {
+        setSelectedCategoryId(categories.find((c) => c.id !== id)?.id || null);
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const formatInputValue = (value: number): string => {
+    if (!value) return "";
+    return new Intl.NumberFormat("id-ID").format(value);
   };
 
   if (loading) {
@@ -104,98 +184,136 @@ export const GoldPricesPage: React.FC = () => {
     );
   }
 
-  if (!basePrice) {
-    return <div className="p-8 text-center text-destructive">Data harga emas tidak ditemukan.</div>;
-  }
-
   return (
-    <div className="max-w-3xl mx-auto space-y-8 p-6 lg:p-10">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Kelola Harga Emas</h1>
-        <p className="text-muted-foreground">Update harga jual dan buyback emas per gram secara real-time.</p>
-      </div>
-
-      {/* Current Prices Display */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-gold/10 dark:bg-[#2b2417]/30 border border-gold/20 rounded-xl p-6">
-          <p className="text-sm text-[#D4AF37] font-semibold mb-2 uppercase tracking-wide">Harga Jual Saat Ini</p>
-          <p className="text-3xl md:text-4xl font-bold text-[#D4AF37]">{formatCurrency(basePrice.sell_price_per_gram)}</p>
-          <p className="text-xs text-muted-foreground mt-2">per gram</p>
-        </div>
-
-        <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
-          <p className="text-sm text-slate-500 font-semibold mb-2 uppercase tracking-wide">Harga Buyback Saat Ini</p>
-          <p className="text-3xl md:text-4xl font-bold text-slate-500">{formatCurrency(basePrice.buyback_price_per_gram)}</p>
-          <p className="text-xs text-muted-foreground mt-2">per gram</p>
-        </div>
-      </div>
-
-      {/* Update Form */}
-      <div className="bg-card border border-border rounded-xl p-6 md:p-8 space-y-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-foreground border-b border-border pb-4">Update Harga Baru</h2>
-
-        <div className="grid gap-6">
-          {/* Input Harga Jual */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Harga Jual per Gram (Rp)
-            </label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">Rp</span>
-              <input
-                type="text" // UBAH JADI TEXT AGAR BISA ADA TITIK
-                value={formatInputValue(editForm.sell_price_per_gram)} // TAMPILKAN DENGAN FORMAT
-                onChange={(e) => handlePriceChange(e, "sell_price_per_gram")} // HANDLE PERUBAHAN
-                placeholder="0"
-                className="w-full pl-12 pr-4 py-3 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-gold font-mono text-lg"
-              />
-            </div>
-          </div>
-
-          {/* Input Harga Buyback */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Harga Buyback per Gram (Rp)
-            </label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">Rp</span>
-              <input
-                type="text" // UBAH JADI TEXT AGAR BISA ADA TITIK
-                value={formatInputValue(editForm.buyback_price_per_gram)} // TAMPILKAN DENGAN FORMAT
-                onChange={(e) => handlePriceChange(e, "buyback_price_per_gram")} // HANDLE PERUBAHAN
-                placeholder="0"
-                className="w-full pl-12 pr-4 py-3 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-gold font-mono text-lg"
-              />
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-gold hover:bg-gold/90 text-slate-900 font-bold rounded-lg transition-all disabled:opacity-50 mt-4"
-        >
-          {saving ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <Save className="w-5 h-5" />
-          )}
-          {saving ? "Menyimpan..." : "Simpan Perubahan Harga"}
-        </button>
-      </div>
-
-      {/* Info Section */}
-      <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-lg p-4 flex gap-3">
-        <div className="text-2xl">ℹ️</div>
+    <div className="max-w-6xl mx-auto space-y-8 p-6 lg:p-10">
+      <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-foreground font-medium">
-            Terakhir diupdate: {basePrice.updated_at ? formatDate(new Date(basePrice.updated_at)) : "-"}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Perubahan harga di sini akan langsung mempengaruhi kalkulasi harga di halaman depan dan katalog produk. Pastikan nominal yang dimasukkan sudah benar.
-          </p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Kelola Harga Emas</h1>
+          <p className="text-muted-foreground">Kelola kategori dan harga jual/buyback per gramasi</p>
+        </div>
+        <Button onClick={() => { setEditingCategory(null); setCategoryName(""); setCategoryDialogOpen(true); }}>
+          <Plus className="w-4 h-4 mr-2" />
+          Tambah Kategori
+        </Button>
+      </div>
+
+      {/* Category Selector */}
+      <div className="bg-card border border-border rounded-xl p-6">
+        <Label className="text-lg font-semibold mb-4 block">Pilih Kategori</Label>
+        <div className="flex flex-wrap gap-2">
+          {categories.map((cat) => (
+            <div key={cat.id} className="flex items-center gap-2">
+              <Button
+                variant={selectedCategoryId === cat.id ? "default" : "outline"}
+                onClick={() => setSelectedCategoryId(cat.id)}
+                className={selectedCategoryId === cat.id ? "bg-gold text-black" : ""}
+              >
+                {cat.name}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setEditingCategory(cat); setCategoryName(cat.name); setCategoryDialogOpen(true); }}
+              >
+                <Edit2 className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => handleDeleteCategory(cat.id)}>
+                <Trash2 className="w-4 h-4 text-destructive" />
+              </Button>
+            </div>
+          ))}
         </div>
       </div>
+
+      {selectedCategoryId && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Sell Prices */}
+          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Harga Jual</h2>
+              <Button onClick={() => handleSavePrices("sell")} disabled={saving} size="sm">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              </Button>
+            </div>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {GOLD_WEIGHT_OPTIONS.map((weight) => {
+                const price = sellPrices.find((p) => p.weight === weight)?.price || 0;
+                return (
+                  <div key={weight} className="flex items-center gap-3">
+                    <Label className="w-20">{weight}g</Label>
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">Rp</span>
+                      <Input
+                        type="text"
+                        value={formatInputValue(price)}
+                        onChange={(e) => handlePriceChange(weight, e.target.value, "sell")}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Buyback Prices */}
+          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Harga Buyback</h2>
+              <Button onClick={() => handleSavePrices("buyback")} disabled={saving} size="sm">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              </Button>
+            </div>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {GOLD_WEIGHT_OPTIONS.map((weight) => {
+                const price = buybackPrices.find((p) => p.weight === weight)?.price || 0;
+                return (
+                  <div key={weight} className="flex items-center gap-3">
+                    <Label className="w-20">{weight}g</Label>
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">Rp</span>
+                      <Input
+                        type="text"
+                        value={formatInputValue(price)}
+                        onChange={(e) => handlePriceChange(weight, e.target.value, "buyback")}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Dialog */}
+      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingCategory ? "Edit Kategori" : "Tambah Kategori"}</DialogTitle>
+            <DialogDescription>Masukkan nama kategori (contoh: tahun emas)</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Label>Nama Kategori</Label>
+            <Input
+              value={categoryName}
+              onChange={(e) => setCategoryName(e.target.value)}
+              placeholder="Contoh: 2024"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCategoryDialogOpen(false)}>
+              <X className="w-4 h-4 mr-2" />
+              Batal
+            </Button>
+            <Button onClick={editingCategory ? handleUpdateCategory : handleCreateCategory}>
+              <Save className="w-4 h-4 mr-2" />
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
