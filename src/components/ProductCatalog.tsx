@@ -5,7 +5,6 @@ import {
   useSupabase, 
   getProducts, 
   getGoldCategories, 
-  getSellPricesByCategory,
   GoldCategory,
   GOLD_WEIGHT_OPTIONS 
 } from "@/lib/supabase";
@@ -18,12 +17,7 @@ export const ProductCatalog = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<GoldCategory[]>([]);
   
-  // State untuk harga dinamis
-  const [priceLookup, setPriceLookup] = useState<Record<number, Record<number, number>>>({});
-
   const [selectedWeight, setSelectedWeight] = useState<number | null>(null);
-  
-  // Ubah default state null
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -40,28 +34,22 @@ export const ProductCatalog = () => {
         getGoldCategories(supabase),
       ]);
 
-      setProducts(productsData ?? []);
-      setCategories(categoriesData ?? []);
+      // Sort produk agar yang terbaru muncul duluan
+      const sortedProducts = (productsData ?? []).sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
 
-      // Ambil harga dinamis untuk setiap kategori
-      if (categoriesData && categoriesData.length > 0) {
-        const lookupTable: Record<number, Record<number, number>> = {};
+      // Sort kategori agar tahun terbaru (misal 2025) muncul duluan di dropdown
+      const sortedCategories = (categoriesData ?? []).sort((a, b) => 
+        b.name.localeCompare(a.name, undefined, { numeric: true })
+      );
 
-        await Promise.all(
-          categoriesData.map(async (cat) => {
-            const prices = await getSellPricesByCategory(supabase, cat.id);
-            const weightMap: Record<number, number> = {};
-            prices.forEach((p) => {
-              weightMap[p.weight] = p.price;
-            });
-            lookupTable[cat.id] = weightMap;
-          })
-        );
-        setPriceLookup(lookupTable);
-      }
+      setProducts(sortedProducts);
+      setCategories(sortedCategories);
 
     } catch (err) {
       console.error("Error loading catalog:", err);
+      toast({ title: "Gagal memuat katalog", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -72,20 +60,17 @@ export const ProductCatalog = () => {
   }, []);
 
   // ==========================
-  // LOGIC FILTER (DIPERBAIKI)
+  // LOGIC FILTER
   // ==========================
   const filteredProducts = products.filter((p) => {
-    // 1. Filter Status Aktif
+    // 1. Filter Status Aktif (Hanya tampilkan produk Active)
     if (p.is_active === false) return false;
 
     // 2. Filter Berat
     if (selectedWeight !== null && p.weight !== selectedWeight) return false;
 
-    // 3. Filter Kategori (FIXED)
+    // 3. Filter Kategori
     if (selectedCategoryId !== null) {
-      // Kita pastikan kedua sisi adalah NUMBER agar pencocokan valid
-      // p.category_id dari Supabase (int8) -> Number
-      // selectedCategoryId dari State -> Number
       if (p.category_id !== selectedCategoryId) {
         return false;
       }
@@ -112,7 +97,7 @@ export const ProductCatalog = () => {
             Katalog Emas Antam
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto text-sm md:text-base px-2">
-            Pilih berat dan kategori yang sesuai. Harga terupdate otomatis.
+            Pilih berat dan edisi tahun yang sesuai. Harga terupdate real-time.
           </p>
         </motion.div>
 
@@ -121,22 +106,20 @@ export const ProductCatalog = () => {
         =========================== */}
         <div className="mb-10 space-y-6">
           
-          {/* Filter 1: Kategori */}
+          {/* Filter 1: Kategori (Tahun) */}
           <div>
             <h3 className="text-xs md:text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
-              Filter Tahun
+              Filter Edisi Tahun
             </h3>
             <select
               value={selectedCategoryId ?? ""}
               onChange={(e) => {
                 const val = e.target.value;
-                // PENTING: Ubah string dari dropdown menjadi Number dengan parseInt
-                // Jika value kosong (""), set menjadi null agar filter mati
                 setSelectedCategoryId(val ? parseInt(val) : null);
               }}
               className="w-full md:w-auto min-w-[200px] px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
             >
-              <option value="">Semua Kategori</option>
+              <option value="">Semua Edisi</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
@@ -192,21 +175,16 @@ export const ProductCatalog = () => {
         ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
             {filteredProducts.map((product, index) => {
-              // Logic Harga
-              let livePrice = product.price;
-
-              if (product.category_id && priceLookup[product.category_id]) {
-                const dynamicPrice = priceLookup[product.category_id][product.weight];
-                if (dynamicPrice) {
-                  livePrice = dynamicPrice;
-                }
-              }
+              // Cari Nama Kategori (Tahun) berdasarkan ID yang ada di produk
+              const category = categories.find(c => c.id === product.category_id);
 
               return (
                 <ProductCard
                   key={product.id}
                   index={index}
-                  product={{ ...product, price: livePrice }}
+                  product={product}
+                  // Kirim nama kategori ke ProductCard untuk ditampilkan di badge
+                  categoryName={category?.name} 
                 />
               );
             })}
@@ -216,10 +194,6 @@ export const ProductCatalog = () => {
             <p className="text-muted-foreground">
               Tidak ada produk yang sesuai filter.
             </p>
-            <div className="mt-2 text-xs text-muted-foreground">
-               {/* Debugging info untuk membantumu melihat apa yang terjadi */}
-               (Debug: Kategori Terpilih ID: {selectedCategoryId})
-            </div>
             <button 
               onClick={() => { setSelectedCategoryId(null); setSelectedWeight(null); }}
               className="mt-4 text-sm text-[#D4AF37] hover:underline font-bold"
