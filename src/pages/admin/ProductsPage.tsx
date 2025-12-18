@@ -14,7 +14,7 @@ import {
 } from "@/lib/supabase";
 import { formatCurrency } from "@/lib/formatting";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit2, Trash2, X, Package, RefreshCw, Loader2, Filter } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Package, Loader2, Filter, Calculator } from "lucide-react";
 
 interface Product {
   id: string;
@@ -36,7 +36,7 @@ export const ProductsPage: React.FC = () => {
   const [categories, setCategories] = useState<GoldCategory[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // State untuk Filter Kategori (Baru)
+  // State untuk Filter Kategori
   const [filterCategoryId, setFilterCategoryId] = useState<number | "all">("all");
 
   // Modal State
@@ -47,6 +47,9 @@ export const ProductsPage: React.FC = () => {
   // Price Calculation State
   const [currentCategoryPrices, setCurrentCategoryPrices] = useState<GoldWeightPrice[]>([]);
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
+  
+  // State helper untuk menampilkan info kalkulasi
+  const [calculationInfo, setCalculationInfo] = useState<string>("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -62,23 +65,47 @@ export const ProductsPage: React.FC = () => {
     loadInitialData();
   }, []);
 
-  // Update harga otomatis saat form kategori berubah
+  // 1. Update list harga saat kategori dipilih
   useEffect(() => {
     if (formData.category_id) {
       fetchPricesForCategory(parseInt(formData.category_id));
     } else {
       setCurrentCategoryPrices([]);
+      setCalculationInfo("");
     }
   }, [formData.category_id]);
 
-  // Update harga otomatis saat berat berubah
+  // 2. LOGIC KALKULASI HARGA: Harga DB (Per Gram) * Berat
   useEffect(() => {
     const weightNum = parseFloat(formData.weight);
-    if (weightNum && currentCategoryPrices.length > 0) {
-      const foundPrice = currentCategoryPrices.find((p) => p.weight === weightNum);
-      if (foundPrice) {
-        setFormData((prev) => ({ ...prev, price: foundPrice.price.toString() }));
+    
+    // Pastikan ada berat yang dipilih dan data harga sudah tersedia
+    if (!isNaN(weightNum) && currentCategoryPrices.length > 0) {
+      
+      // Cari harga dasar per gram untuk berat yang dipilih
+      const foundPriceData = currentCategoryPrices.find((p) => p.weight === weightNum);
+      
+      if (foundPriceData) {
+        const basePricePerGram = foundPriceData.price;
+        
+        // RUMUS: Harga Dasar x Berat
+        const calculatedTotalPrice = basePricePerGram * weightNum;
+
+        setFormData((prev) => ({ 
+          ...prev, 
+          price: calculatedTotalPrice.toString() 
+        }));
+
+        // Set info visual agar user tahu perhitungannya
+        setCalculationInfo(
+          `Rumus: ${formatCurrency(basePricePerGram)}/gr × ${weightNum}gr`
+        );
+      } else {
+        // Jika berat dipilih tapi tidak ada seting harga di GoldPricesPage
+        setCalculationInfo("Harga dasar untuk berat ini belum diset di menu Harga Emas");
       }
+    } else {
+      setCalculationInfo("");
     }
   }, [formData.weight, currentCategoryPrices]);
 
@@ -122,6 +149,7 @@ export const ProductsPage: React.FC = () => {
     });
     setEditingId(null);
     setCurrentCategoryPrices([]);
+    setCalculationInfo("");
   };
 
   const startEdit = (product: Product) => {
@@ -135,6 +163,7 @@ export const ProductsPage: React.FC = () => {
       is_active: product.is_active,
       category_id: product.category_id ? product.category_id.toString() : "",
     });
+    // Trigger modal open (useEffect akan jalan setelah state category_id terisi)
     setModalOpen(true);
   };
 
@@ -162,7 +191,6 @@ export const ProductsPage: React.FC = () => {
         return;
       }
       
-      // Validasi tambahan: Wajib pilih kategori agar data rapi
       if (!categoryId) {
         toast({ title: "Error", description: "Pilih kategori harga terlebih dahulu" });
         return;
@@ -210,7 +238,6 @@ export const ProductsPage: React.FC = () => {
     }
   };
 
-  // --- LOGIC FILTERING ---
   const filteredProducts = products.filter((product) => {
     if (filterCategoryId === "all") return true;
     return product.category_id === filterCategoryId;
@@ -248,7 +275,7 @@ export const ProductsPage: React.FC = () => {
         </button>
       </div>
 
-      {/* --- FILTER BAR SECTION --- */}
+      {/* Filter Bar */}
       <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-x-auto">
         <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-slate-500 text-sm font-semibold pr-2 border-r border-slate-200 dark:border-slate-600">
@@ -283,7 +310,7 @@ export const ProductsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Products Grid (Menampilkan filteredProducts) */}
+      {/* Products Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProducts.map((product) => (
             <div
@@ -302,11 +329,9 @@ export const ProductsPage: React.FC = () => {
                     No Image
                   </div>
                 )}
-                {/* Badge Berat */}
                 <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded font-bold">
                   {product.weight}g
                 </div>
-                {/* Badge Kategori (Opsional: Menampilkan nama kategori di kartu) */}
                 {product.category_id && (
                     <div className="absolute top-2 left-2 bg-[#D4AF37]/90 text-black text-[10px] uppercase font-bold px-2 py-1 rounded">
                         {categories.find(c => c.id === product.category_id)?.name || "N/A"}
@@ -326,7 +351,7 @@ export const ProductsPage: React.FC = () => {
 
                 <div className="flex justify-between items-end border-t border-slate-100 dark:border-slate-700 pt-3">
                   <div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">Harga Jual</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">Total Harga Jual</p>
                     <p className="font-bold text-[#D4AF37] text-lg">
                       {formatCurrency(product.price)}
                     </p>
@@ -360,21 +385,7 @@ export const ProductsPage: React.FC = () => {
           ))}
       </div>
 
-      {filteredProducts.length === 0 && (
-        <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
-          <Package size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-          <p className="text-slate-600 dark:text-slate-400">
-             {filterCategoryId === "all" ? "Belum ada produk" : "Tidak ada produk di kategori ini"}
-          </p>
-          {filterCategoryId !== "all" && (
-             <button onClick={() => setFilterCategoryId("all")} className="mt-2 text-[#D4AF37] text-sm hover:underline">
-                 Lihat semua kategori
-             </button>
-          )}
-        </div>
-      )}
-
-      {/* Form Modal (Sama seperti sebelumnya) */}
+      {/* Modal Form */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200">
@@ -382,13 +393,7 @@ export const ProductsPage: React.FC = () => {
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                 {editingId ? "Edit Produk" : "Tambah Produk"}
               </h2>
-              <button
-                onClick={() => {
-                  setModalOpen(false);
-                  resetForm();
-                }}
-                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
-              >
+              <button onClick={() => { setModalOpen(false); resetForm(); }} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -452,18 +457,29 @@ export const ProductsPage: React.FC = () => {
               {/* Price & Description */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                    Harga Jual (IDR) *
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-semibold text-slate-900 dark:text-white">
+                        Total Harga Jual (IDR) *
+                    </label>
+                    <Calculator size={14} className="text-slate-400" />
+                  </div>
                   <div className="relative">
                     <input
                       type="number"
                       value={formData.price}
+                      // Kita biarkan user edit manual jika perlu, tapi useEffect akan menimpanya jika berat berubah
                       onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                       className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pl-10"
                     />
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">Rp</span>
                   </div>
+                  {/* Kalkulasi Helper Text */}
+                  {calculationInfo && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1.5 flex items-center gap-1 font-medium bg-blue-50 dark:bg-blue-900/20 p-1.5 rounded">
+                        <Calculator size={10} />
+                        {calculationInfo}
+                    </p>
+                  )}
                 </div>
 
                  <div>

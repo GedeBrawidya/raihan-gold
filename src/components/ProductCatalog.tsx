@@ -119,7 +119,7 @@ export const ProductCatalog = () => {
         {/* ==========================
             FILTERS
         =========================== */}
-        <div className="mb-10 space-y-6">g
+        <div className="mb-10 space-y-6">
           
           {/* Filter 1: Kategori */}
           <div>

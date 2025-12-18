@@ -35,7 +35,7 @@ export const GoldPricesPage: React.FC = () => {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // State loading terpisah (agar tombol Jual & Buyback tidak loading barengan)
+  // State loading terpisah
   const [isSavingSell, setIsSavingSell] = useState(false);
   const [isSavingBuyback, setIsSavingBuyback] = useState(false);
 
@@ -60,11 +60,20 @@ export const GoldPricesPage: React.FC = () => {
     try {
       setLoading(true);
       const data = await getGoldCategories(supabase);
-      setCategories(data);
-      // Logic pilih otomatis kategori pertama jika belum ada yang dipilih
-      if (data.length > 0 && !selectedCategoryId) {
-        setSelectedCategoryId(data[0].id);
-      } else if (data.length === 0) {
+
+      // --- PERBAIKAN DISINI ---
+      // Urutkan kategori berdasarkan Nama (Tahun) dari Besar ke Kecil (Descending)
+      // Agar "2025" muncul di paling atas array
+      const sortedData = data.sort((a, b) => 
+        b.name.localeCompare(a.name, undefined, { numeric: true })
+      );
+
+      setCategories(sortedData);
+      
+      // Logic pilih otomatis: Karena sudah di-sort, index [0] adalah tahun terbaru
+      if (sortedData.length > 0 && !selectedCategoryId) {
+        setSelectedCategoryId(sortedData[0].id);
+      } else if (sortedData.length === 0) {
         setSelectedCategoryId(null);
       }
     } catch (err: any) {
@@ -91,7 +100,6 @@ export const GoldPricesPage: React.FC = () => {
   const handleSavePrices = async (type: "sell" | "buyback") => {
     if (!selectedCategoryId) return;
     
-    // Set loading spesifik
     if (type === "sell") setIsSavingSell(true);
     else setIsSavingBuyback(true);
 
@@ -116,7 +124,6 @@ export const GoldPricesPage: React.FC = () => {
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
-      // Reset loading spesifik
       if (type === "sell") setIsSavingSell(false);
       else setIsSavingBuyback(false);
     }
@@ -215,7 +222,6 @@ export const GoldPricesPage: React.FC = () => {
         
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
           <div className="relative w-full md:max-w-md">
-            {/* Ini tetap dropdown agar user mudah memilih yg sudah ada */}
             <select
               value={selectedCategoryId || ""}
               onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
@@ -331,7 +337,7 @@ export const GoldPricesPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL INPUT: Kembali jadi Input Text biasa */}
+      {/* MODAL INPUT */}
       <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -340,7 +346,6 @@ export const GoldPricesPage: React.FC = () => {
           </DialogHeader>
           <div className="space-y-4">
             <Label>Nama Kategori</Label>
-            {/* KEMBALI MENGGUNAKAN INPUT TEXT BIASA */}
             <Input
               value={categoryName}
               onChange={(e) => setCategoryName(e.target.value)}
