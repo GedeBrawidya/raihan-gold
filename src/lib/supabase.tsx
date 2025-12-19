@@ -205,6 +205,20 @@ export const uploadProductImage = async (supabase: SupabaseClient, file: File) =
   }
 };
 
+
+//=============== dinamik gold prices by category ===============
+// Tambahkan ini di file src/lib/supabase.ts
+
+export const getAllGoldPrices = async (client: any) => {
+  // Asumsi nama tabel harga kamu 'gold_prices' (sesuaikan jika beda)
+  const { data, error } = await client
+    .from('gold_sell_prices') 
+    .select('*');
+  
+  if (error) throw error;
+  return data;
+};
+
 // ============== ANTAM DAILY PRICE (Single Row) ==============
 
 export interface AntamDailyPrice {

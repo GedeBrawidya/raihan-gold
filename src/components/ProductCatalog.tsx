@@ -1,10 +1,12 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ProductCard } from "./ProductCard";
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { 
   useSupabase, 
   getProducts, 
   getGoldCategories, 
+  getAllGoldPrices, // <--- JANGAN LUPA IMPORT INI (Fungsi baru di step 1)
   GoldCategory,
   GOLD_WEIGHT_OPTIONS 
 } from "@/lib/supabase";
@@ -17,9 +19,12 @@ export const ProductCatalog = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<GoldCategory[]>([]);
   
+  // STATE BARU: Untuk menyimpan Master Harga Emas
+  const [goldPrices, setGoldPrices] = useState<any[]>([]);
+
   const [selectedWeight, setSelectedWeight] = useState<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
-
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // ==========================
@@ -29,23 +34,23 @@ export const ProductCatalog = () => {
     try {
       setLoading(true);
 
-      const [productsData, categoriesData] = await Promise.all([
+      const [productsData, categoriesData, pricesData] = await Promise.all([
         getProducts(supabase),
         getGoldCategories(supabase),
+        getAllGoldPrices(supabase), // <--- Ambil Master Harga
       ]);
 
-      // Sort produk agar yang terbaru muncul duluan
       const sortedProducts = (productsData ?? []).sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      // Sort kategori agar tahun terbaru (misal 2025) muncul duluan di dropdown
       const sortedCategories = (categoriesData ?? []).sort((a, b) => 
         b.name.localeCompare(a.name, undefined, { numeric: true })
       );
 
       setProducts(sortedProducts);
       setCategories(sortedCategories);
+      setGoldPrices(pricesData ?? []); // Simpan Master Harga
 
     } catch (err) {
       console.error("Error loading catalog:", err);
@@ -63,24 +68,14 @@ export const ProductCatalog = () => {
   // LOGIC FILTER
   // ==========================
   const filteredProducts = products.filter((p) => {
-    // 1. Filter Status Aktif (Hanya tampilkan produk Active)
     if (p.is_active === false) return false;
-
-    // 2. Filter Berat
     if (selectedWeight !== null && p.weight !== selectedWeight) return false;
-
-    // 3. Filter Kategori
-    if (selectedCategoryId !== null) {
-      if (p.category_id !== selectedCategoryId) {
-        return false;
-      }
-    }
-
+    if (selectedCategoryId !== null && p.category_id !== selectedCategoryId) return false;
     return true;
   });
 
   return (
-    <section id="produk" className="py-12 md:py-24 bg-background">
+    <section id="produk" className="py-12 md:py-24 bg-background relative">
       <div className="container mx-auto px-4">
         {/* Header Section */}
         <motion.div
@@ -97,7 +92,7 @@ export const ProductCatalog = () => {
             Katalog Emas Antam
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto text-sm md:text-base px-2">
-            Pilih berat dan edisi tahun yang sesuai. Harga terupdate real-time.
+            Harga terupdate otomatis mengikuti pasar (Real-time).
           </p>
         </motion.div>
 
@@ -105,8 +100,7 @@ export const ProductCatalog = () => {
             FILTERS
         =========================== */}
         <div className="mb-10 space-y-6">
-          
-          {/* Filter 1: Kategori (Tahun) */}
+          {/* Filter 1: Kategori */}
           <div>
             <h3 className="text-xs md:text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
               Filter Edisi Tahun
@@ -133,7 +127,6 @@ export const ProductCatalog = () => {
             <h3 className="text-xs md:text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
               Filter Berat (Gram)
             </h3>
-
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setSelectedWeight(null)}
@@ -145,7 +138,6 @@ export const ProductCatalog = () => {
               >
                 Semua
               </button>
-
               {GOLD_WEIGHT_OPTIONS.map((weight) => (
                 <button
                   key={weight}
@@ -175,16 +167,30 @@ export const ProductCatalog = () => {
         ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
             {filteredProducts.map((product, index) => {
-              // Cari Nama Kategori (Tahun) berdasarkan ID yang ada di produk
               const category = categories.find(c => c.id === product.category_id);
+
+              // === LOGIC HITUNG HARGA DINAMIS ===
+              // 1. Cari data harga per gram yang cocok (Kategori & Berat sama)
+              const matchedPriceData = goldPrices.find(
+                (gp) => gp.category_id === product.category_id && gp.weight === product.weight
+              );
+
+              // 2. Hitung harga baru
+              // Kalau ketemu setting harganya -> Pakai (HargaPerGram * BeratProduk)
+              // Kalau TIDAK ketemu -> Pakai harga lama yg tersimpan di produk (Fallback)
+              const dynamicPrice = matchedPriceData 
+                ? (matchedPriceData.price * product.weight) 
+                : product.price;
 
               return (
                 <ProductCard
                   key={product.id}
                   index={index}
                   product={product}
-                  // Kirim nama kategori ke ProductCard untuk ditampilkan di badge
-                  categoryName={category?.name} 
+                  categoryName={category?.name}
+                  onImageClick={(url) => setSelectedImage(url)}
+                  // 👇 KITA KIRIM HARGA UPDATE DISINI
+                  displayPrice={dynamicPrice} 
                 />
               );
             })}
@@ -203,6 +209,36 @@ export const ProductCatalog = () => {
           </div>
         )}
       </div>
+
+      {/* ==========================
+          MODAL / LIGHTBOX GAMBAR
+      =========================== */}
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedImage(null)} 
+            className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          >
+            <button className="absolute top-5 right-5 text-white/70 hover:text-white transition-colors bg-white/10 rounded-full p-2">
+              <X size={24} />
+            </button>
+
+            <motion.img
+              src={selectedImage}
+              alt="Zoomed Product"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="max-w-full max-h-[85vh] object-contain rounded-md shadow-2xl border border-white/10"
+              onClick={(e) => e.stopPropagation()} 
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 };

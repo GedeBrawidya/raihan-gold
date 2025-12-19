@@ -52,7 +52,7 @@ export const AboutSection = () => {
               memberikan produk berkualitas tinggi.
             </p>
             <p className="text-cream/70 leading-relaxed text-sm md:text-base hidden md:block">
-              Kami menyediakan berbagai pilihan emas ANTAM (batangan & koin) dengan sertifikat resmi. 
+              Kami menyediakan berbagai pilihan emas ANTAM (Logam Mulia) dengan sertifikat resmi. 
               Kepuasan dan kepercayaan pelanggan adalah prioritas utama kami.
             </p>
           </motion.div>
