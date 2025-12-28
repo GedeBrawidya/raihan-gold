@@ -13,6 +13,7 @@ import { DashboardHome } from "./pages/admin/DashboardHome";
 import { GoldPricesPage } from "./pages/admin/GoldPricesPage";
 import { ProductsPage } from "./pages/admin/ProductsPage";
 import { ReviewManager } from "./pages/admin/ReviewManager";
+import { ScrollReveal } from "./components/ui/ScrollReveal";
 
 const queryClient = new QueryClient();
 
@@ -24,12 +25,13 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            {/* Landing Page */}
             <Route path="/" element={<Index />} />
             
-            {/* Admin Login - PUBLIC */}
+            {/* Admin Login */}
             <Route path="/admin/login" element={<AdminLoginPage />} />
             
-            {/* Admin Routes - PROTECTED */}
+            {/* Admin Routes */}
             <Route
               path="/admin"
               element={
@@ -45,7 +47,6 @@ const App = () => (
               <Route path="reviews" element={<ReviewManager />} />
             </Route>
             
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
