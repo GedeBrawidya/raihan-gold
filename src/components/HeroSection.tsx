@@ -66,10 +66,38 @@ export const HeroSection = () => {
             className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4 mb-12 md:mb-16 w-full px-4"
           >
             <Button variant="gold" size="lg" className="w-full sm:w-auto h-12 md:h-14 text-base md:text-lg" asChild>
-              <a href="#harga-emas">Lihat Harga Emas</a>
+              <a 
+                href="#harga-emas"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const element = document.getElementById("harga-emas");
+                  if (element) {
+                    const headerOffset = 80;
+                    const elementPosition = element.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                    window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+                  }
+                }}
+              >
+                Lihat Harga Emas
+              </a>
             </Button>
             <Button variant="goldOutline" size="lg" className="w-full sm:w-auto h-12 md:h-14 text-base md:text-lg" asChild>
-              <a href="#produk">Katalog Produk</a>
+              <a 
+                href="#produk"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const element = document.getElementById("produk");
+                  if (element) {
+                    const headerOffset = 80;
+                    const elementPosition = element.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                    window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+                  }
+                }}
+              >
+                Katalog Produk
+              </a>
             </Button>
           </motion.div>
 
@@ -105,6 +133,16 @@ export const HeroSection = () => {
       >
         <motion.a
           href="#harga-emas"
+          onClick={(e) => {
+            e.preventDefault();
+            const element = document.getElementById("harga-emas");
+            if (element) {
+              const headerOffset = 80;
+              const elementPosition = element.getBoundingClientRect().top;
+              const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+              window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+            }
+          }}
           animate={{ y: [0, 10, 0] }}
           transition={{ duration: 2, repeat: Infinity }}
           className="flex flex-col items-center gap-2 text-cream/40 hover:text-gold transition-colors"

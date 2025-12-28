@@ -110,12 +110,23 @@
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-serif;
+  }
+
+  /* Smooth scroll dengan offset untuk fixed navbar */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-padding-top: 5rem; /* Sesuaikan dengan tinggi navbar */
+    }
   }
 }
 

@@ -1,32 +1,40 @@
 import { motion } from "framer-motion";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 import logo from "@/assets/raihan-gold-logo.png";
+import { ScrollReveal } from "@/components/ui/ScrollReveal";
 
 export const Footer = () => {
+  // Smooth scroll handler
+  const handleSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    const targetId = href.replace("#", "");
+    const element = document.getElementById(targetId);
+    
+    if (element) {
+      const headerOffset = 80;
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+    }
+  };
+
   return (
     <footer className="bg-secondary border-t border-gold/10">
       <div className="container mx-auto px-4 py-16">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12">
           {/* Brand */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-          >
+          <ScrollReveal width="100%" animation="fadeUp" duration={0.5}>
+            <div>
             <img src={logo} alt="Raihan Gold" className="h-16 w-auto mb-4" />
             <p className="text-cream/60 text-sm leading-relaxed">
               Mitra terpercaya untuk jual & beli emas berkualitas. Berkomitmen memberikan pelayanan terbaik.
             </p>
-          </motion.div>
+          </div>
+          </ScrollReveal>
 
           {/* Quick Links */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
+          <ScrollReveal width="100%" animation="fadeUp" delay={0.1} duration={0.5}>
+            <div>
             <h4 className="text-cream font-serif font-semibold mb-4">
               Menu
             </h4>
@@ -40,6 +48,7 @@ export const Footer = () => {
                 <li key={link.label}>
                   <a
                     href={link.href}
+                    onClick={(e) => handleSmoothScroll(e, link.href)}
                     className="text-cream/60 hover:text-gold text-sm transition-colors"
                   >
                     {link.label}
@@ -47,15 +56,12 @@ export const Footer = () => {
                 </li>
               ))}
             </ul>
-          </motion.div>
+          </div>
+          </ScrollReveal>
 
           {/* Contact */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
+          <ScrollReveal width="100%" animation="fadeUp" delay={0.2} duration={0.5}>
+            <div>
             <h4 className="text-cream font-serif font-semibold mb-4">
               Kontak
             </h4>
@@ -73,15 +79,12 @@ export const Footer = () => {
                 <span>buy@raihangold.com</span>
               </li>
             </ul>
-          </motion.div>
+          </div>
+          </ScrollReveal>
 
           {/* Hours */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
+          <ScrollReveal width="100%" animation="fadeUp" delay={0.3} duration={0.5}>
+            <div>
             <h4 className="text-cream font-serif font-semibold mb-4">
               Jam Operasional
             </h4>
@@ -101,7 +104,8 @@ export const Footer = () => {
                 </div>
               </li>
             </ul>
-          </motion.div>
+          </div>
+          </ScrollReveal>
         </div>
 
         {/* Bottom Bar */}

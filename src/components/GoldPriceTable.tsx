@@ -12,6 +12,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { ScrollReveal } from "@/components/ui/ScrollReveal";
 
 export const GoldPriceTable = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -98,32 +99,23 @@ export const GoldPriceTable = () => {
     <section id="harga-emas" className="py-12 md:py-24 bg-gradient-to-b from-background to-slate-50 dark:from-slate-950 dark:to-slate-900">
       <div className="container mx-auto px-4">
         {/* Section Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-10 md:mb-16"
-        >
-          <span className="inline-block px-3 py-1 bg-[#D4AF37]/10 text-[#D4AF37] text-xs md:text-sm font-medium rounded-full mb-4">
-            💰 Harga Terkini
-          </span>
-          <h2 className="text-3xl md:text-5xl font-serif font-bold text-foreground mb-4 break-words">
-            Harga Emas Hari Ini
-          </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-sm md:text-lg px-2">
-            Pantau harga jual dan buyback emas dengan real-time. Kami menjamin harga paling kompetitif.
-          </p>
-        </motion.div>
+        <ScrollReveal width="100%" animation="fadeUp" duration={0.6}>
+          <div className="text-center mb-10 md:mb-16">
+            <span className="inline-block px-3 py-1 bg-[#D4AF37]/10 text-[#D4AF37] text-xs md:text-sm font-medium rounded-full mb-4">
+              💰 Harga Terkini
+            </span>
+            <h2 className="text-3xl md:text-5xl font-serif font-bold text-foreground mb-4 break-words">
+              Harga Emas Hari Ini
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-sm md:text-lg px-2">
+              Pantau harga jual dan buyback emas dengan real-time. Kami menjamin harga paling kompetitif.
+            </p>
+          </div>
+        </ScrollReveal>
 
         {/* Main Card Container */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="max-w-5xl mx-auto"
-        >
+        <ScrollReveal width="100%" animation="fadeUp" delay={0.2} duration={0.6}>
+          <div className="max-w-5xl mx-auto">
           <div className="bg-card rounded-xl md:rounded-2xl shadow-xl border border-border overflow-hidden">
             {/* Category Selector */}
             {categories.length > 0 && (
@@ -211,8 +203,12 @@ export const GoldPriceTable = () => {
                         {sellPriceRows.map((row, index) => {
                           const totalPrice = row.price * row.weight;
                           return (
-                            <tr
+                            <motion.tr
                               key={index}
+                              initial={{ opacity: 0, x: -20 }}
+                              whileInView={{ opacity: 1, x: 0 }}
+                              viewport={{ once: false, amount: 0.3 }}
+                              transition={{ duration: 0.4, delay: index * 0.05 }}
                               className="border-t border-border hover:bg-muted/50 transition-colors"
                             >
                               <td className="px-4 md:px-6 py-3 md:py-5">
@@ -236,7 +232,7 @@ export const GoldPriceTable = () => {
                                   {formatCurrency(totalPrice)}
                                 </span>
                               </td>
-                            </tr>
+                            </motion.tr>
                           );
                         })}
                       </tbody>
@@ -269,7 +265,8 @@ export const GoldPriceTable = () => {
               <span className="text-[10px] md:text-xs italic">* Harga dapat berubah sewaktu-waktu</span>
             </div>
           </div>
-        </motion.div>
+        </div>
+        </ScrollReveal>
       </div>
     </section>
   );

@@ -41,11 +41,7 @@ export const ProductCard = ({ product, index, categoryName, onImageClick, displa
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.4, delay: index * 0.08 }}
+    <div
       className="
         group bg-card rounded-xl overflow-hidden 
         border border-border shadow-sm hover:shadow-lg 
@@ -167,6 +163,6 @@ export const ProductCard = ({ product, index, categoryName, onImageClick, displa
           </a>
         </Button>
       </div>
-    </motion.div>
+    </div>
   );
 };

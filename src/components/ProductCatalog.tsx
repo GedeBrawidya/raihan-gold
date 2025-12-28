@@ -11,6 +11,7 @@ import {
   GOLD_WEIGHT_OPTIONS 
 } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { ScrollReveal } from "@/components/ui/ScrollReveal";
 
 export const ProductCatalog = () => {
   const { supabase } = useSupabase();
@@ -78,28 +79,25 @@ export const ProductCatalog = () => {
     <section id="produk" className="py-12 md:py-24 bg-background relative">
       <div className="container mx-auto px-4">
         {/* Header Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-10 md:mb-16"
-        >
-          <span className="inline-block px-3 py-1 bg-[#D4AF37]/10 text-[#D4AF37] text-xs md:text-sm font-medium rounded-full mb-4">
-            Koleksi Emas
-          </span>
-          <h2 className="text-2xl md:text-5xl font-serif font-bold text-foreground mb-4">
-            Katalog Emas Antam
-          </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-sm md:text-base px-2">
-            Harga terupdate otomatis mengikuti pasar (Real-time).
-          </p>
-        </motion.div>
+        <ScrollReveal width="100%" animation="fadeUp" duration={0.6}>
+          <div className="text-center mb-10 md:mb-16">
+            <span className="inline-block px-3 py-1 bg-[#D4AF37]/10 text-[#D4AF37] text-xs md:text-sm font-medium rounded-full mb-4">
+              Koleksi Emas
+            </span>
+            <h2 className="text-2xl md:text-5xl font-serif font-bold text-foreground mb-4">
+              Katalog Emas Antam
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto text-sm md:text-base px-2">
+              Harga terupdate otomatis mengikuti pasar (Real-time).
+            </p>
+          </div>
+        </ScrollReveal>
 
         {/* ==========================
             FILTERS
         =========================== */}
-        <div className="mb-10 space-y-6">
+        <ScrollReveal width="100%" animation="fadeUp" delay={0.2} duration={0.5}>
+          <div className="mb-10 space-y-6">
           {/* Filter 1: Kategori */}
           <div>
             <h3 className="text-xs md:text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
@@ -153,7 +151,8 @@ export const ProductCatalog = () => {
               ))}
             </div>
           </div>
-        </div>
+          </div>
+        </ScrollReveal>
 
         {/* ==========================
             PRODUCT GRID
@@ -183,15 +182,22 @@ export const ProductCatalog = () => {
                 : product.price;
 
               return (
-                <ProductCard
+                <ScrollReveal 
                   key={product.id}
-                  index={index}
-                  product={product}
-                  categoryName={category?.name}
-                  onImageClick={(url) => setSelectedImage(url)}
-                  // 👇 KITA KIRIM HARGA UPDATE DISINI
-                  displayPrice={dynamicPrice} 
-                />
+                  width="100%"
+                  delay={index * 0.1}
+                  animation="scale"
+                  duration={0.5}
+                >
+                  <ProductCard
+                    index={index}
+                    product={product}
+                    categoryName={category?.name}
+                    onImageClick={(url) => setSelectedImage(url)}
+                    // 👇 KITA KIRIM HARGA UPDATE DISINI
+                    displayPrice={dynamicPrice} 
+                  />
+                </ScrollReveal>
               );
             })}
           </div>

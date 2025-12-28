@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useSupabase } from "@/lib/supabase";
 import { Star, Loader2, Quote } from "lucide-react";
+import { ScrollReveal } from "@/components/ui/ScrollReveal";
 
 interface Review {
   id: string;
@@ -52,29 +53,26 @@ export const TestimonialTicker = () => {
   const displayReviews = [...reviews, ...reviews, ...reviews];
 
   return (
-    <section className="py-16 md:py-24 bg-secondary overflow-hidden relative border-t border-gold/5">
+    <section className="py-16 md:py-24 bg-secondary overflow-hidden relative border-t border-gold/5 -mb-px">
       
-      <div className="container mx-auto px-4 mb-10 md:mb-12 text-center">
-        <motion.div
-           initial={{ opacity: 0, y: 20 }}
-           whileInView={{ opacity: 1, y: 0 }}
-           viewport={{ once: true }}
-           transition={{ duration: 0.6 }}
-        >
-          <span className="inline-block px-3 py-1 bg-gold/10 text-gold text-xs md:text-sm font-medium rounded-full mb-4">
-            Testimoni
-          </span>
-          <h2 className="text-3xl md:text-5xl font-serif font-bold text-cream mb-4">
-            Apa Kata <span className="text-gold block sm:inline">Pelanggan Kami?</span>
-          </h2>
-          <p className="text-cream/60 max-w-2xl mx-auto text-sm md:text-base px-2">
-            Kepercayaan Anda adalah aset terbesar kami. Berikut adalah pengalaman mereka berbelanja di Raihan Gold.
-          </p>
-        </motion.div>
+      <div className="container mx-auto px-4 mb-10 md:mb-12 text-center relative z-10">
+        <ScrollReveal width="100%" animation="fadeUp" duration={0.6}>
+          <div>
+            <span className="inline-block px-3 py-1 bg-gold/10 text-gold text-xs md:text-sm font-medium rounded-full mb-4">
+              Testimoni
+            </span>
+            <h2 className="text-3xl md:text-5xl font-serif font-bold text-cream mb-4">
+              Apa Kata <span className="text-gold block sm:inline">Pelanggan Kami?</span>
+            </h2>
+            <p className="text-cream/60 max-w-2xl mx-auto text-sm md:text-base px-2">
+              Kepercayaan Anda adalah aset terbesar kami. Berikut adalah pengalaman mereka berbelanja di Raihan Gold.
+            </p>
+          </div>
+        </ScrollReveal>
       </div>
 
       {/* Marquee Container */}
-      <div className="overflow-hidden flex">
+      <div className="overflow-hidden flex pb-8 md:pb-12">
         <motion.div
           animate={{ x: ["0%", "-50%"] }}
           transition={{
@@ -148,6 +146,8 @@ export const TestimonialTicker = () => {
       <div className="absolute top-0 left-0 h-full w-12 md:w-24 bg-gradient-to-r from-secondary to-transparent pointer-events-none z-10" />
       <div className="absolute top-0 right-0 h-full w-12 md:w-24 bg-gradient-to-l from-secondary to-transparent pointer-events-none z-10" />
       
+      {/* Bottom padding untuk memastikan background konsisten */}
+      <div className="absolute bottom-0 left-0 right-0 h-20 md:h-24 bg-secondary pointer-events-none" />
     </section>
   );
 };

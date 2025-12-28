@@ -15,6 +15,27 @@ export const Header = () => {
     { label: "Tentang Kami", href: "#tentang" },
   ];
 
+  // Smooth scroll handler dengan offset untuk navbar
+  const handleSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    const targetId = href.replace("#", "");
+    const element = document.getElementById(targetId);
+    
+    if (element) {
+      const headerOffset = 80; // Tinggi navbar
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth"
+      });
+    }
+    
+    // Close mobile menu jika terbuka
+    setIsMenuOpen(false);
+  };
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
       <div className="container mx-auto px-4">
@@ -22,6 +43,7 @@ export const Header = () => {
           {/* Logo */}
           <motion.a
             href="#beranda"
+            onClick={(e) => handleSmoothScroll(e, "#beranda")}
             className="flex items-center gap-3"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -36,12 +58,14 @@ export const Header = () => {
               <motion.a
                 key={link.label}
                 href={link.href}
-                className="text-foreground/80 hover:text-gold transition-colors font-medium"
+                onClick={(e) => handleSmoothScroll(e, link.href)}
+                className="text-foreground/80 hover:text-gold transition-colors font-medium relative group"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
               >
                 {link.label}
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gold transition-all duration-300 group-hover:w-full" />
               </motion.a>
             ))}
           </nav>
@@ -89,8 +113,8 @@ export const Header = () => {
               <a
                 key={link.label}
                 href={link.href}
+                onClick={(e) => handleSmoothScroll(e, link.href)}
                 className="text-foreground/80 hover:text-gold transition-colors font-medium py-2"
-                onClick={() => setIsMenuOpen(false)}
               >
                 {link.label}
               </a>
