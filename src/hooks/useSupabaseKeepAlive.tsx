@@ -5,11 +5,14 @@ import { useSupabase } from "@/lib/supabase";
  * Hook untuk mencegah Supabase free tier dari sleep mode
  * dengan melakukan ping berkala ke database
  * 
- * @param intervalMinutes - Interval ping dalam menit (default: 5 menit)
+ * Supabase free tier baru pause setelah 7 hari tidak ada aktivitas,
+ * jadi ping sekali sehari sudah cukup untuk mencegah sleep mode.
+ * 
+ * @param intervalMinutes - Interval ping dalam menit (default: 1440 menit = 24 jam)
  * @param enabled - Enable/disable keep-alive (default: true)
  */
 export const useSupabaseKeepAlive = (
-  intervalMinutes: number = 5,
+  intervalMinutes: number = 1440, // 24 jam = sekali sehari
   enabled: boolean = true // Aktif secara default
 ) => {
   const { supabase } = useSupabase();
@@ -48,8 +51,8 @@ export const useSupabaseKeepAlive = (
     pingDatabase();
 
     // Set interval untuk ping setiap X menit
-    // Supabase free tier biasanya sleep setelah 5-10 menit tidak ada aktivitas
-    // Jadi kita ping setiap 5 menit untuk memastikan tidak sleep
+    // Supabase free tier baru pause setelah 7 hari tidak ada aktivitas
+    // Jadi ping sekali sehari sudah cukup untuk mencegah sleep mode
     const intervalMs = intervalMinutes * 60 * 1000;
     intervalRef.current = setInterval(() => {
       pingDatabase();
