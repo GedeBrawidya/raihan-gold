@@ -14,8 +14,15 @@ import { GoldPricesPage } from "./pages/admin/GoldPricesPage";
 import { ProductsPage } from "./pages/admin/ProductsPage";
 import { ReviewManager } from "./pages/admin/ReviewManager";
 import { ScrollReveal } from "./components/ui/ScrollReveal";
+import { useSupabaseKeepAlive } from "@/hooks/useSupabaseKeepAlive";
 
 const queryClient = new QueryClient();
+
+// Component untuk keep-alive Supabase
+const SupabaseKeepAlive = () => {
+  useSupabaseKeepAlive();
+  return null; // Component ini tidak render apapun
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -24,6 +31,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <SupabaseKeepAlive />
           <Routes>
             {/* Landing Page */}
             <Route path="/" element={<Index />} />
