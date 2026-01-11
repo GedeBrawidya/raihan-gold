@@ -82,7 +82,7 @@ export const useSupabaseKeepAlive = (
               console.log("✅ Supabase keep-alive ping on tab focus");
             }
           })
-          .catch((err) => {
+          .then(undefined, (err) => {
             console.warn("Supabase keep-alive ping on tab focus failed:", err);
           });
       }
